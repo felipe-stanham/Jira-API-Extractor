@@ -179,10 +179,12 @@ def save_to_excel(issues, worklogs, comments):
             pie = PieChart()
             pie.title = "Issues by Status"
             
-            # Configure data labels to show value and percentage
+            # Configure data labels to show only value and percentage
             pie.dataLabels = DataLabelList()
             pie.dataLabels.showVal = True
             pie.dataLabels.showPercent = True
+            pie.dataLabels.showCatName = False
+            pie.dataLabels.showSerName = False
 
             labels = Reference(ws_issues, min_col=summary_start_col, min_row=2, max_row=total_row - 1)
             data = Reference(ws_issues, min_col=summary_start_col + 1, min_row=2, max_row=total_row - 1)
