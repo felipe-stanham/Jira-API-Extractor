@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 from openpyxl import Workbook
 from openpyxl.chart import PieChart, BarChart, Reference
+from openpyxl.utils import get_column_letter
 from openpyxl.chart.label import DataLabelList
 from collections import Counter
 
@@ -57,7 +58,7 @@ def get_work_logs(project_key, start_date, end_date):
     search_url = f"{JIRA_API_URL}/rest/api/3/search"
     headers = {"Accept": "application/json"}
     jql = f'project = "{project_key}" AND worklogDate >= "{start_date}" AND worklogDate <= "{end_date}"'
-    params = {'jql': jql, 'fields': 'worklog,summary,issuetype,status,sprint', 'maxResults': 1000}
+    params = {'jql': jql, 'fields': 'worklog,summary,issuetype,status,sprint,closedSprints', 'maxResults': 1000}
     try:
         response = requests.get(search_url, headers=headers, params=params, auth=get_auth())
         response.raise_for_status()
@@ -75,8 +76,14 @@ def get_work_logs(project_key, start_date, end_date):
                 if start_date_aware <= worklog_date <= end_date_aware:
                     comment_obj = worklog.get('comment', {})
                     comment_text = parse_adf_to_text(comment_obj)
+                    sprints = []
                     sprint_field = issue.get('fields', {}).get('sprint')
-                    sprint_names = '; '.join([s['name'] for s in sprint_field]) if sprint_field else 'N/A'
+                    if sprint_field:
+                        sprints.extend([s['name'] for s in sprint_field])
+                    closed_sprints_field = issue.get('fields', {}).get('closedSprints')
+                    if closed_sprints_field:
+                        sprints.extend([s['name'] for s in closed_sprints_field])
+                    sprint_names = '; '.join(sorted(list(set(sprints)))) if sprints else 'N/A'
 
                     all_worklogs.append({
                         'issueKey': issue.get('key'),
@@ -220,12 +227,19 @@ def save_to_excel(issues, worklogs, comments):
         ws_worklogs.cell(row=1, column=table_a_start_col, value="Author")
         for i, issue_type in enumerate(unique_issue_types):
             ws_worklogs.cell(row=1, column=table_a_start_col + 1 + i, value=issue_type)
+        ws_worklogs.cell(row=1, column=table_a_start_col + 1 + len(unique_issue_types), value="Total")
         
         for r_idx, author in enumerate(unique_authors, start=2):
             ws_worklogs.cell(row=r_idx, column=table_a_start_col, value=author)
             for c_idx, issue_type in enumerate(unique_issue_types):
                 formula = f'=SUMIFS({hours_range}, {author_range}, "{author}", {issuetype_range}, "{issue_type}")'
                 ws_worklogs.cell(row=r_idx, column=table_a_start_col + 1 + c_idx, value=formula)
+            
+            # Add total formula for the row
+            start_sum_col_letter = get_column_letter(table_a_start_col + 1)
+            end_sum_col_letter = get_column_letter(table_a_start_col + len(unique_issue_types))
+            total_formula = f'=SUM({start_sum_col_letter}{r_idx}:{end_sum_col_letter}{r_idx})'
+            ws_worklogs.cell(row=r_idx, column=table_a_start_col + 1 + len(unique_issue_types), value=total_formula)
 
         # --- Chart for Table A ---
         chart_a = BarChart()
@@ -236,7 +250,7 @@ def save_to_excel(issues, worklogs, comments):
         chart_a.x_axis.title = 'Author'
         
         cats = Reference(ws_worklogs, min_col=table_a_start_col, min_row=2, max_row=len(unique_authors) + 1)
-        data = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=1, max_col=table_a_start_col + len(unique_issue_types), max_row=len(unique_authors) + 1)
+        data = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=1, max_col=table_a_start_col + 1 + len(unique_issue_types), max_row=len(unique_authors) + 1)
         chart_a.add_data(data, titles_from_data=True)
         chart_a.set_categories(cats)
         ws_worklogs.add_chart(chart_a, f"K{len(unique_authors) + 4}")
