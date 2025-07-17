@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 from openpyxl import Workbook
 from openpyxl.chart import PieChart, BarChart, Reference
+
 from openpyxl.utils import get_column_letter
 from openpyxl.chart.label import DataLabelList
 from collections import Counter
@@ -254,9 +255,6 @@ def save_to_excel(issues, worklogs, comments):
         cats = Reference(ws_worklogs, min_col=table_a_start_col, min_row=2, max_row=len(unique_authors) + 1)
         chart_a.add_data(data, titles_from_data=True)
         chart_a.set_categories(cats)
-        # Ensure the x-axis is treated as a category axis to display labels
-        chart_a.x_axis.number_format = '@' # or 'General'
-        chart_a.x_axis.majorTickMark = 'out'
         ws_worklogs.add_chart(chart_a, f"K{len(unique_authors) + 4}")
 
         # --- Table B: Hours by Issue Type ---
