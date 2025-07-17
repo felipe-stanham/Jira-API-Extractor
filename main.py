@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 from openpyxl import Workbook
 from openpyxl.chart import PieChart, Reference
+from openpyxl.chart.label import DataLabelList
 from collections import Counter
 
 # Load environment variables from .env file
@@ -139,27 +140,58 @@ def save_to_excel(issues, worklogs, comments):
             issue_type = fields.get('issuetype', {}).get('name', 'N/A')
             ws_issues.append([issue.get('key'), issue_type, fields.get('summary'), fields.get('status', {}).get('name'), parent_summary])
 
-        # --- Create Pie Chart for Issue Status ---
+        # --- Create Summary Table and Pie Chart for Issue Status ---
         if issues:
-            status_counts = Counter(issue.get('fields', {}).get('status', {}).get('name', 'N/A') for issue in issues)
+            # Use a set to get unique statuses to build the summary table
+            unique_statuses = sorted(list(set(issue.get('fields', {}).get('status', {}).get('name', 'N/A') for issue in issues)))
             
-            # Create a summary table for the chart data in columns G and H
-            ws_issues['G1'] = 'Status'
-            ws_issues['H1'] = 'Count'
-            
-            for row, (status, count) in enumerate(status_counts.items(), start=2):
-                ws_issues.cell(row=row, column=7, value=status)
-                ws_issues.cell(row=row, column=8, value=count)
+            # Define the range of the issue data
+            max_data_row = ws_issues.max_row
+            status_data_range = f'D2:D{max_data_row}'
 
+            # Create headers for the summary table
+            summary_start_col = 7 # Column G
+            ws_issues.cell(row=1, column=summary_start_col, value='Status')
+            ws_issues.cell(row=1, column=summary_start_col + 1, value='Count')
+            ws_issues.cell(row=1, column=summary_start_col + 2, value='Percentage')
+
+            # Populate the summary table with statuses and formulas
+            for i, status in enumerate(unique_statuses, start=2):
+                # Status Name
+                status_cell = ws_issues.cell(row=i, column=summary_start_col, value=status)
+                # Count Formula
+                count_formula = f'=COUNTIF({status_data_range}, "{status}")'
+                count_cell = ws_issues.cell(row=i, column=summary_start_col + 1, value=count_formula)
+
+            # Add a 'Total' row
+            total_row = len(unique_statuses) + 2
+            ws_issues.cell(row=total_row, column=summary_start_col, value="Total")
+            total_count_cell_ref = f'H{total_row}'
+            ws_issues[total_count_cell_ref] = f'=SUM(H2:H{total_row - 1})'
+
+            # Add percentage formulas now that the total is available
+            for i in range(2, total_row):
+                percentage_cell = ws_issues.cell(row=i, column=summary_start_col + 2)
+                percentage_cell.value = f'=H{i}/${total_count_cell_ref}'
+                percentage_cell.number_format = '0.00%'
+
+            # Create the Pie Chart
             pie = PieChart()
-            labels = Reference(ws_issues, min_col=7, min_row=2, max_row=len(status_counts) + 1)
-            data = Reference(ws_issues, min_col=8, min_row=1, max_row=len(status_counts) + 1)
-            pie.add_data(data, titles_from_data=True)
-            pie.set_categories(labels)
             pie.title = "Issues by Status"
+            
+            # Configure data labels to show value and percentage
+            pie.dataLabels = DataLabelList()
+            pie.dataLabels.showVal = True
+            pie.dataLabels.showPercent = True
 
-            # Add the chart to the sheet
-            ws_issues.add_chart(pie, "I2")
+            labels = Reference(ws_issues, min_col=summary_start_col, min_row=2, max_row=total_row - 1)
+            data = Reference(ws_issues, min_col=summary_start_col + 1, min_row=2, max_row=total_row - 1)
+            
+            pie.add_data(data, titles_from_data=False)
+            pie.set_categories(labels)
+
+            # Add the chart to the sheet, placing it to the right of the summary table
+            ws_issues.add_chart(pie, "K2")
 
     if worklogs:
         ws_worklogs = wb.create_sheet(title="Work Logs")
