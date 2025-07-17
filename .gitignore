@@ -1,0 +1,12 @@
+# Environment variables
+.env
+
+# Generated files
+JiraExport.xlsx
+
+# Python cache
+__pycache__/
+*.pyc
+
+# macOS system files
+.DS_Store
