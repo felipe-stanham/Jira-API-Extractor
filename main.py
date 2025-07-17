@@ -10,7 +10,7 @@ import argparse
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from openpyxl import Workbook
-from openpyxl.chart import PieChart, Reference
+from openpyxl.chart import PieChart, BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from collections import Counter
 
@@ -57,7 +57,7 @@ def get_work_logs(project_key, start_date, end_date):
     search_url = f"{JIRA_API_URL}/rest/api/3/search"
     headers = {"Accept": "application/json"}
     jql = f'project = "{project_key}" AND worklogDate >= "{start_date}" AND worklogDate <= "{end_date}"'
-    params = {'jql': jql, 'fields': 'worklog,summary,issuetype,status', 'maxResults': 1000}
+    params = {'jql': jql, 'fields': 'worklog,summary,issuetype,status,sprint', 'maxResults': 1000}
     try:
         response = requests.get(search_url, headers=headers, params=params, auth=get_auth())
         response.raise_for_status()
@@ -75,11 +75,15 @@ def get_work_logs(project_key, start_date, end_date):
                 if start_date_aware <= worklog_date <= end_date_aware:
                     comment_obj = worklog.get('comment', {})
                     comment_text = parse_adf_to_text(comment_obj)
+                    sprint_field = issue.get('fields', {}).get('sprint')
+                    sprint_names = '; '.join([s['name'] for s in sprint_field]) if sprint_field else 'N/A'
+
                     all_worklogs.append({
                         'issueKey': issue.get('key'),
                         'summary': issue.get('fields', {}).get('summary'),
                         'issueType': issue.get('fields', {}).get('issuetype', {}).get('name', 'N/A'),
                         'status': issue.get('fields', {}).get('status', {}).get('name', 'N/A'),
+                        'sprint': sprint_names,
                         'author': worklog.get('author', {}).get('displayName'),
                         'timeSpent': worklog.get('timeSpent'),
                         'timeSpentHours': round(worklog.get('timeSpentSeconds', 0) / 3600, 2),
@@ -197,9 +201,86 @@ def save_to_excel(issues, worklogs, comments):
 
     if worklogs:
         ws_worklogs = wb.create_sheet(title="Work Logs")
-        ws_worklogs.append(['Issue Key', 'Issue Type', 'Summary', 'Status', 'Author', 'Time Spent', 'Time Spent (Hours)', 'Date', 'Comment'])
+        ws_worklogs.append(['Issue Key', 'Issue Type', 'Summary', 'Status', 'Sprint', 'Author', 'Time Spent (Hours)', 'Date', 'Comment'])
         for log in worklogs:
-            ws_worklogs.append([log['issueKey'], log['issueType'], log['summary'], log['status'], log['author'], log['timeSpent'], log['timeSpentHours'], log['startedDate'], log['comment']])
+            ws_worklogs.append([log['issueKey'], log['issueType'], log['summary'], log['status'], log['sprint'], log['author'], log['timeSpentHours'], log['startedDate'], log['comment']])
+
+        # --- Create Summary Tables and Charts for Work Logs ---
+        max_log_row = ws_worklogs.max_row
+        author_range = f'F2:F{max_log_row}'
+        issuetype_range = f'B2:B{max_log_row}'
+        sprint_range = f'E2:E{max_log_row}'
+        hours_range = f'G2:G{max_log_row}'
+
+        # --- Table A: Hours by Author and Issue Type ---
+        table_a_start_col = 11 # Column K
+        unique_authors = sorted(list(set(log['author'] for log in worklogs)))
+        unique_issue_types = sorted(list(set(log['issueType'] for log in worklogs)))
+
+        ws_worklogs.cell(row=1, column=table_a_start_col, value="Author")
+        for i, issue_type in enumerate(unique_issue_types):
+            ws_worklogs.cell(row=1, column=table_a_start_col + 1 + i, value=issue_type)
+        
+        for r_idx, author in enumerate(unique_authors, start=2):
+            ws_worklogs.cell(row=r_idx, column=table_a_start_col, value=author)
+            for c_idx, issue_type in enumerate(unique_issue_types):
+                formula = f'=SUMIFS({hours_range}, {author_range}, "{author}", {issuetype_range}, "{issue_type}")'
+                ws_worklogs.cell(row=r_idx, column=table_a_start_col + 1 + c_idx, value=formula)
+
+        # --- Chart for Table A ---
+        chart_a = BarChart()
+        chart_a.type = "col"
+        chart_a.style = 10
+        chart_a.title = "Hours by Author and Issue Type"
+        chart_a.y_axis.title = 'Total Hours'
+        chart_a.x_axis.title = 'Author'
+        
+        cats = Reference(ws_worklogs, min_col=table_a_start_col, min_row=2, max_row=len(unique_authors) + 1)
+        data = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=1, max_col=table_a_start_col + len(unique_issue_types), max_row=len(unique_authors) + 1)
+        chart_a.add_data(data, titles_from_data=True)
+        chart_a.set_categories(cats)
+        ws_worklogs.add_chart(chart_a, f"K{len(unique_authors) + 4}")
+
+        # --- Table B: Hours by Issue Type ---
+        table_b_start_row = len(unique_authors) + 15
+        ws_worklogs.cell(row=table_b_start_row, column=table_a_start_col, value="Issue Type")
+        ws_worklogs.cell(row=table_b_start_row, column=table_a_start_col + 1, value="Total Hours")
+        for i, issue_type in enumerate(unique_issue_types, start=1):
+            ws_worklogs.cell(row=table_b_start_row + i, column=table_a_start_col, value=issue_type)
+            ws_worklogs.cell(row=table_b_start_row + i, column=table_a_start_col + 1, value=f'=SUMIF({issuetype_range}, "{issue_type}", {hours_range})')
+
+        # --- Chart for Table B ---
+        chart_b = PieChart()
+        chart_b.title = "Hours by Issue Type"
+        chart_b.dataLabels = DataLabelList(showVal=True, showPercent=True, showCatName=False, showSerName=False)
+        labels_b = Reference(ws_worklogs, min_col=table_a_start_col, min_row=table_b_start_row + 1, max_row=table_b_start_row + len(unique_issue_types))
+        data_b = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=table_b_start_row + 1, max_row=table_b_start_row + len(unique_issue_types))
+        chart_b.add_data(data_b, titles_from_data=False)
+        chart_b.set_categories(labels_b)
+        ws_worklogs.add_chart(chart_b, f"R{table_b_start_row}")
+
+        # --- Table C: Hours by Sprint ---
+        all_sprints = set()
+        for log in worklogs:
+            all_sprints.update(s.strip() for s in log['sprint'].split(';') if s.strip() != 'N/A')
+        unique_sprints = sorted(list(all_sprints))
+
+        table_c_start_row = table_b_start_row + len(unique_issue_types) + 3
+        ws_worklogs.cell(row=table_c_start_row, column=table_a_start_col, value="Sprint")
+        ws_worklogs.cell(row=table_c_start_row, column=table_a_start_col + 1, value="Total Hours")
+        for i, sprint in enumerate(unique_sprints, start=1):
+            ws_worklogs.cell(row=table_c_start_row + i, column=table_a_start_col, value=sprint)
+            ws_worklogs.cell(row=table_c_start_row + i, column=table_a_start_col + 1, value=f'=SUMIF({sprint_range}, "*{sprint}*", {hours_range})')
+        
+        # --- Chart for Table C ---
+        chart_c = PieChart()
+        chart_c.title = "Hours by Sprint"
+        chart_c.dataLabels = DataLabelList(showVal=True, showPercent=True, showCatName=False, showSerName=False)
+        labels_c = Reference(ws_worklogs, min_col=table_a_start_col, min_row=table_c_start_row + 1, max_row=table_c_start_row + len(unique_sprints))
+        data_c = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=table_c_start_row + 1, max_row=table_c_start_row + len(unique_sprints))
+        chart_c.add_data(data_c, titles_from_data=False)
+        chart_c.set_categories(labels_c)
+        ws_worklogs.add_chart(chart_c, f"R{table_c_start_row}")
 
     if comments:
         ws_comments = wb.create_sheet(title="Comments")
