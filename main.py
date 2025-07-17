@@ -246,8 +246,9 @@ def save_to_excel(issues, worklogs, comments):
         chart_a.type = "col"
         chart_a.style = 10
         chart_a.title = "Hours by Author and Issue Type"
-        chart_a.y_axis.title = 'Total Hours'
-        chart_a.x_axis.title = 'Author'
+        chart_a.y_axis.title = 'Hours'
+        chart_a.x_axis.title = 'Authors'
+        chart_a.legend.position = 'b'
         
         cats = Reference(ws_worklogs, min_col=table_a_start_col, min_row=2, max_row=len(unique_authors) + 1)
         data = Reference(ws_worklogs, min_col=table_a_start_col + 1, min_row=1, max_col=table_a_start_col + 1 + len(unique_issue_types), max_row=len(unique_authors) + 1)
