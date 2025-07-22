@@ -27,7 +27,8 @@ This is a modular terminal application to extract information from Jira and expo
 ├── config.py            # Configuration and authentication management
 ├── jira_api.py          # Jira API client with pagination support
 ├── excel_exporter.py    # Excel export functionality with charts
-├── charts_helper.py     # Enhanced chart creation functions
+├── charts_helper_improved.py # Enhanced chart creation functions with color support
+├── chart_colors.py      # Color configuration for consistent chart styling
 ├── utils.py             # Utility functions (ADF parsing, pagination)
 ├── requirements.txt     # Python dependencies
 ├── .env.example         # Environment variables template
