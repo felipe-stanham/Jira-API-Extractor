@@ -32,7 +32,7 @@ def main():
     """Main function to parse arguments and run the export process."""
     parser = argparse.ArgumentParser(description='Jira Sprint and Work Log Exporter.')
     parser.add_argument('--project', required=True, help='Jira Project Key (e.g., NG).')
-    parser.add_argument('--sprint', help='Jira Sprint ID (optional).')
+    parser.add_argument('--sprint', help='Jira Sprint ID(s) (optional). Use comma-separated values for multiple sprints (e.g., 528,560).')
     parser.add_argument('--start_date', help='Start date for work logs and comments (YYYY-MM-DD, optional).')
     parser.add_argument('--end_date', help='End date for work logs and comments (YYYY-MM-DD, optional).')
 
@@ -74,16 +74,40 @@ def main():
 
     # Fetch data based on provided arguments
     issues = None
+    issues_by_sprint = {}  # Dictionary to store issues by sprint ID
     worklogs = None
     comments = None
 
     if args.sprint:
-        print(f"Fetching issues for sprint {args.sprint} in project {args.project}...")
-        issues = jira_client.get_issues_in_sprint(args.project.upper(), args.sprint)
-        if isinstance(issues, dict) and 'error' in issues:
-            print(f"Error fetching issues: {issues['error']}")
-            return
-        print(f"Found {len(issues)} issues in sprint {args.sprint}")
+        # Parse comma-separated sprint IDs
+        sprint_ids = [sprint.strip() for sprint in args.sprint.split(',')]
+        
+        for sprint_id in sprint_ids:
+            print(f"Fetching issues for sprint {sprint_id} in project {args.project}...")
+            sprint_issues = jira_client.get_issues_in_sprint(args.project.upper(), sprint_id)
+            if isinstance(sprint_issues, dict) and 'error' in sprint_issues:
+                print(f"Error fetching issues for sprint {sprint_id}: {sprint_issues['error']}")
+                continue
+            
+            # Get sprint details for the name
+            sprint_details = jira_client.get_sprint_details(sprint_id)
+            sprint_name = sprint_details.get('name', f'Sprint {sprint_id}') if sprint_details else f'Sprint {sprint_id}'
+            
+            # Add sprint information to each issue
+            for issue in sprint_issues:
+                issue['sprint_id'] = sprint_id
+                issue['sprint_name'] = sprint_name
+            
+            issues_by_sprint[sprint_id] = {
+                'issues': sprint_issues,
+                'name': sprint_name
+            }
+            print(f"Found {len(sprint_issues)} issues in sprint {sprint_id} ({sprint_name})")
+        
+        # Combine all issues for backward compatibility
+        issues = []
+        for sprint_data in issues_by_sprint.values():
+            issues.extend(sprint_data['issues'])
 
     if args.start_date and args.end_date:
         print(f"Fetching work logs from {args.start_date} to {args.end_date}...")
@@ -106,7 +130,7 @@ def main():
         return
 
     print("Saving data to Excel...")
-    success, filename, error = exporter.save_to_excel(issues, worklogs, comments)
+    success, filename, error = exporter.save_to_excel(issues, worklogs, comments, issues_by_sprint=issues_by_sprint)
     
     if success:
         summary = []
