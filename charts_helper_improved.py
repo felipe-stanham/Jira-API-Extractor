@@ -3,7 +3,29 @@
 from openpyxl.chart import PieChart, BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart.series import SeriesLabel
+from openpyxl.drawing.colors import ColorChoice
 from collections import Counter
+from chart_colors import assign_colors_to_series, get_issue_type_color, get_status_color
+
+def apply_colors_to_pie_chart(pie_chart, items, color_map_func):
+    """Apply consistent colors to pie chart series based on configuration."""
+    color_assignments = assign_colors_to_series(items, color_map_func)
+    
+    for i, item in enumerate(items):
+        if i < len(pie_chart.series) and len(pie_chart.series[i].dPt) == 0:
+            # Create data point for coloring
+            from openpyxl.chart.data_source import NumData, NumVal
+            from openpyxl.chart.series import DataPoint
+            
+            # Add data points for each slice
+            for j in range(len(items)):
+                dp = DataPoint(idx=j)
+                if j < len(items):
+                    color_hex = color_assignments[list(items)[j]]
+                    dp.spPr = dp.spPr or type('obj', (object,), {})()
+                    dp.spPr.solidFill = ColorChoice(srgbClr=color_hex)
+                pie_chart.series[i].dPt.append(dp)
+            break
 
 def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
     """Creates a charts sheet with improved formatting and labels."""
@@ -267,6 +289,7 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 sprint_issues = sprint_data['issues']
                 sprint_name = sprint_data['name']
                 
+                # ===== SPRINT STATUS CHART =====
                 # Create data for this sprint's status chart
                 ws_charts.cell(row=current_row, column=1, value=f'{sprint_name} - Issues by Status')
                 ws_charts.cell(row=current_row + 1, column=1, value='Status')
@@ -278,39 +301,85 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                     status = issue.get('fields', {}).get('status', {}).get('name', 'Unknown')
                     sprint_status_counts[status] += 1
                 
-                sprint_data_start = current_row + 2
+                sprint_status_start = current_row + 2
                 for i, (status, count) in enumerate(sorted(sprint_status_counts.items())):
-                    row = sprint_data_start + i
+                    row = sprint_status_start + i
                     ws_charts.cell(row=row, column=1, value=status)
                     ws_charts.cell(row=row, column=2, value=count)
                 
-                sprint_data_end = sprint_data_start + len(sprint_status_counts) - 1
+                sprint_status_end = sprint_status_start + len(sprint_status_counts) - 1
                 
-                # Create pie chart for this sprint
-                pie_sprint = PieChart()
-                pie_sprint.title = f"{sprint_name} - Issues by Status"
-                pie_sprint.width = 10
-                pie_sprint.height = 7
+                # Create pie chart for this sprint's status
+                pie_sprint_status = PieChart()
+                pie_sprint_status.title = f"{sprint_name} - Issues by Status"
+                pie_sprint_status.width = 10
+                pie_sprint_status.height = 7
                 
-                labels_sprint = Reference(ws_charts, min_col=1, min_row=sprint_data_start, max_row=sprint_data_end)
-                data_sprint = Reference(ws_charts, min_col=2, min_row=sprint_data_start, max_row=sprint_data_end)
+                labels_sprint_status = Reference(ws_charts, min_col=1, min_row=sprint_status_start, max_row=sprint_status_end)
+                data_sprint_status = Reference(ws_charts, min_col=2, min_row=sprint_status_start, max_row=sprint_status_end)
                 
-                pie_sprint.add_data(data_sprint, titles_from_data=False)
-                pie_sprint.set_categories(labels_sprint)
+                pie_sprint_status.add_data(data_sprint_status, titles_from_data=False)
+                pie_sprint_status.set_categories(labels_sprint_status)
                 
                 # Configure chart appearance - show only value and percentage
-                pie_sprint.dataLabels = DataLabelList()
-                pie_sprint.dataLabels.showCatName = False  # Don't show category name
-                pie_sprint.dataLabels.showVal = True       # Show value
-                pie_sprint.dataLabels.showPercent = True   # Show percentage
-                pie_sprint.dataLabels.showSerName = False  # Don't show series name
+                pie_sprint_status.dataLabels = DataLabelList()
+                pie_sprint_status.dataLabels.showCatName = False  # Don't show category name
+                pie_sprint_status.dataLabels.showVal = True       # Show value
+                pie_sprint_status.dataLabels.showPercent = True   # Show percentage
+                pie_sprint_status.dataLabels.showSerName = False  # Don't show series name
                 
-                # Position chart
-                chart_position = f"{chart_col}{current_row}"
-                ws_charts.add_chart(pie_sprint, chart_position)
+                # Position status chart
+                chart_position_status = f"{chart_col}{current_row}"
+                ws_charts.add_chart(pie_sprint_status, chart_position_status)
                 
-                # Move to next position
-                current_row = sprint_data_end + 3
+                # ===== SPRINT TYPE CHART =====
+                # Move to next section for type chart
+                current_row = sprint_status_end + 3
+                
+                # Create data for this sprint's type chart
+                ws_charts.cell(row=current_row, column=1, value=f'{sprint_name} - Issues by Type')
+                ws_charts.cell(row=current_row + 1, column=1, value='Issue Type')
+                ws_charts.cell(row=current_row + 1, column=2, value='Count')
+                
+                # Count issues by type for this sprint
+                sprint_type_counts = Counter()
+                for issue in sprint_issues:
+                    issue_type = issue.get('fields', {}).get('issuetype', {}).get('name', 'Unknown')
+                    sprint_type_counts[issue_type] += 1
+                
+                sprint_type_start = current_row + 2
+                for i, (issue_type, count) in enumerate(sorted(sprint_type_counts.items())):
+                    row = sprint_type_start + i
+                    ws_charts.cell(row=row, column=1, value=issue_type)
+                    ws_charts.cell(row=row, column=2, value=count)
+                
+                sprint_type_end = sprint_type_start + len(sprint_type_counts) - 1
+                
+                # Create pie chart for this sprint's type
+                pie_sprint_type = PieChart()
+                pie_sprint_type.title = f"{sprint_name} - Issues by Type"
+                pie_sprint_type.width = 10
+                pie_sprint_type.height = 7
+                
+                labels_sprint_type = Reference(ws_charts, min_col=1, min_row=sprint_type_start, max_row=sprint_type_end)
+                data_sprint_type = Reference(ws_charts, min_col=2, min_row=sprint_type_start, max_row=sprint_type_end)
+                
+                pie_sprint_type.add_data(data_sprint_type, titles_from_data=False)
+                pie_sprint_type.set_categories(labels_sprint_type)
+                
+                # Configure chart appearance - show only value and percentage
+                pie_sprint_type.dataLabels = DataLabelList()
+                pie_sprint_type.dataLabels.showCatName = False  # Don't show category name
+                pie_sprint_type.dataLabels.showVal = True       # Show value
+                pie_sprint_type.dataLabels.showPercent = True   # Show percentage
+                pie_sprint_type.dataLabels.showSerName = False  # Don't show series name
+                
+                # Position type chart (next to status chart)
+                chart_position_type = f"AB{current_row}"  # Column AB for type charts
+                ws_charts.add_chart(pie_sprint_type, chart_position_type)
+                
+                # Move to next sprint position
+                current_row = sprint_type_end + 5
     else:
         # Add summary for issues only
         summary_row = type_end_row + 3
@@ -327,6 +396,7 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 sprint_issues = sprint_data['issues']
                 sprint_name = sprint_data['name']
                 
+                # ===== SPRINT STATUS CHART =====
                 # Create data for this sprint's status chart
                 ws_charts.cell(row=current_row, column=1, value=f'{sprint_name} - Issues by Status')
                 ws_charts.cell(row=current_row + 1, column=1, value='Status')
@@ -338,36 +408,82 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                     status = issue.get('fields', {}).get('status', {}).get('name', 'Unknown')
                     sprint_status_counts[status] += 1
                 
-                sprint_data_start = current_row + 2
+                sprint_status_start = current_row + 2
                 for i, (status, count) in enumerate(sorted(sprint_status_counts.items())):
-                    row = sprint_data_start + i
+                    row = sprint_status_start + i
                     ws_charts.cell(row=row, column=1, value=status)
                     ws_charts.cell(row=row, column=2, value=count)
                 
-                sprint_data_end = sprint_data_start + len(sprint_status_counts) - 1
+                sprint_status_end = sprint_status_start + len(sprint_status_counts) - 1
                 
-                # Create pie chart for this sprint
-                pie_sprint = PieChart()
-                pie_sprint.title = f"{sprint_name} - Issues by Status"
-                pie_sprint.width = 10
-                pie_sprint.height = 7
+                # Create pie chart for this sprint's status
+                pie_sprint_status = PieChart()
+                pie_sprint_status.title = f"{sprint_name} - Issues by Status"
+                pie_sprint_status.width = 10
+                pie_sprint_status.height = 7
                 
-                labels_sprint = Reference(ws_charts, min_col=1, min_row=sprint_data_start, max_row=sprint_data_end)
-                data_sprint = Reference(ws_charts, min_col=2, min_row=sprint_data_start, max_row=sprint_data_end)
+                labels_sprint_status = Reference(ws_charts, min_col=1, min_row=sprint_status_start, max_row=sprint_status_end)
+                data_sprint_status = Reference(ws_charts, min_col=2, min_row=sprint_status_start, max_row=sprint_status_end)
                 
-                pie_sprint.add_data(data_sprint, titles_from_data=False)
-                pie_sprint.set_categories(labels_sprint)
+                pie_sprint_status.add_data(data_sprint_status, titles_from_data=False)
+                pie_sprint_status.set_categories(labels_sprint_status)
                 
                 # Configure chart appearance - show only value and percentage
-                pie_sprint.dataLabels = DataLabelList()
-                pie_sprint.dataLabels.showCatName = False  # Don't show category name
-                pie_sprint.dataLabels.showVal = True       # Show value
-                pie_sprint.dataLabels.showPercent = True   # Show percentage
-                pie_sprint.dataLabels.showSerName = False  # Don't show series name
+                pie_sprint_status.dataLabels = DataLabelList()
+                pie_sprint_status.dataLabels.showCatName = False  # Don't show category name
+                pie_sprint_status.dataLabels.showVal = True       # Show value
+                pie_sprint_status.dataLabels.showPercent = True   # Show percentage
+                pie_sprint_status.dataLabels.showSerName = False  # Don't show series name
                 
-                # Position chart
-                chart_position = f"{chart_col}{current_row}"
-                ws_charts.add_chart(pie_sprint, chart_position)
+                # Position status chart
+                chart_position_status = f"{chart_col}{current_row}"
+                ws_charts.add_chart(pie_sprint_status, chart_position_status)
                 
-                # Move to next position
-                current_row = sprint_data_end + 3
+                # ===== SPRINT TYPE CHART =====
+                # Move to next section for type chart
+                current_row = sprint_status_end + 3
+                
+                # Create data for this sprint's type chart
+                ws_charts.cell(row=current_row, column=1, value=f'{sprint_name} - Issues by Type')
+                ws_charts.cell(row=current_row + 1, column=1, value='Issue Type')
+                ws_charts.cell(row=current_row + 1, column=2, value='Count')
+                
+                # Count issues by type for this sprint
+                sprint_type_counts = Counter()
+                for issue in sprint_issues:
+                    issue_type = issue.get('fields', {}).get('issuetype', {}).get('name', 'Unknown')
+                    sprint_type_counts[issue_type] += 1
+                
+                sprint_type_start = current_row + 2
+                for i, (issue_type, count) in enumerate(sorted(sprint_type_counts.items())):
+                    row = sprint_type_start + i
+                    ws_charts.cell(row=row, column=1, value=issue_type)
+                    ws_charts.cell(row=row, column=2, value=count)
+                
+                sprint_type_end = sprint_type_start + len(sprint_type_counts) - 1
+                
+                # Create pie chart for this sprint's type
+                pie_sprint_type = PieChart()
+                pie_sprint_type.title = f"{sprint_name} - Issues by Type"
+                pie_sprint_type.width = 10
+                pie_sprint_type.height = 7
+                
+                labels_sprint_type = Reference(ws_charts, min_col=1, min_row=sprint_type_start, max_row=sprint_type_end)
+                data_sprint_type = Reference(ws_charts, min_col=2, min_row=sprint_type_start, max_row=sprint_type_end)
+                
+                pie_sprint_type.add_data(data_sprint_type, titles_from_data=False)
+                pie_sprint_type.set_categories(labels_sprint_type)
+                
+                # Configure chart appearance - show only value and percentage
+                pie_sprint_type.dataLabels = DataLabelList()
+                pie_sprint_type.dataLabels.showCatName = False  # Don't show category name
+                pie_sprint_type.dataLabels.showVal = True       # Show value
+                pie_sprint_type.dataLabels.showPercent = True   # Show percentage
+                pie_sprint_type.dataLabels.showSerName = False  # Don't show series name
+                
+                # Position type chart (next to status chart)
+                chart_position_type = f"AB{current_row}"  # Column AB for type charts
+                ws_charts.add_chart(pie_sprint_type, chart_position_type)
+                
+                # Move to next sprint position
+                current_row = sprint_type_end + 5
