@@ -30,6 +30,24 @@ class JiraAPIClient:
         except requests.exceptions.RequestException as e:
             return {'error': str(e)}
     
+    def get_sprint_details(self, sprint_id):
+        """
+        Fetches sprint details including name.
+        """
+        sprint_url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}"
+        
+        try:
+            response = self.session.get(
+                sprint_url,
+                headers=self.headers,
+                auth=self.auth
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Warning: Could not fetch sprint details for sprint {sprint_id}: {str(e)}")
+            return None
+    
     def get_all_worklogs_in_date_range(self, project_key, start_date, end_date):
         """
         Fetches all worklogs within a date range for a project using the worklog search API.
