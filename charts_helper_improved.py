@@ -9,23 +9,27 @@ from chart_colors import assign_colors_to_series, get_issue_type_color, get_stat
 
 def apply_colors_to_pie_chart(pie_chart, items, color_map_func):
     """Apply consistent colors to pie chart series based on configuration."""
+    from openpyxl.chart.series import DataPoint
+    from openpyxl.chart.shapes import GraphicalProperties
+    from openpyxl.drawing.fill import PatternFillProperties
+    from openpyxl.drawing.colors import ColorChoice
+    
     color_assignments = assign_colors_to_series(items, color_map_func)
     
+    # Create data points for each slice with colors
+    data_points = []
     for i, item in enumerate(items):
-        if i < len(pie_chart.series) and len(pie_chart.series[i].dPt) == 0:
-            # Create data point for coloring
-            from openpyxl.chart.data_source import NumData, NumVal
-            from openpyxl.chart.series import DataPoint
-            
-            # Add data points for each slice
-            for j in range(len(items)):
-                dp = DataPoint(idx=j)
-                if j < len(items):
-                    color_hex = color_assignments[list(items)[j]]
-                    dp.spPr = dp.spPr or type('obj', (object,), {})()
-                    dp.spPr.solidFill = ColorChoice(srgbClr=color_hex)
-                pie_chart.series[i].dPt.append(dp)
-            break
+        color_hex = color_assignments[item]
+        
+        # Create data point with solid fill color
+        dp = DataPoint(idx=i)
+        dp.spPr = GraphicalProperties()
+        dp.spPr.solidFill = ColorChoice(srgbClr=color_hex)
+        data_points.append(dp)
+    
+    # Apply data points to the first series
+    if len(pie_chart.series) > 0:
+        pie_chart.series[0].data_points = data_points
 
 def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
     """Creates a charts sheet with improved formatting and labels."""
@@ -64,6 +68,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
     
     pie_status.add_data(data, titles_from_data=False)
     pie_status.set_categories(labels)
+    
+    # Apply colors based on status configuration
+    apply_colors_to_pie_chart(pie_status, sorted(status_counts.keys()), get_status_color)
     
     # Configure chart appearance - show only value and percentage
     pie_status.dataLabels = DataLabelList()
@@ -105,6 +112,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
     
     pie_type.add_data(data_type, titles_from_data=False)
     pie_type.set_categories(labels_type)
+    
+    # Apply colors based on issue type configuration
+    apply_colors_to_pie_chart(pie_type, sorted(type_counts.keys()), get_issue_type_color)
     
     # Configure chart appearance - show only value and percentage
     pie_type.dataLabels = DataLabelList()
@@ -151,6 +161,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
         
         pie_time.add_data(data_time, titles_from_data=False)
         pie_time.set_categories(labels_time)
+        
+        # Apply colors based on issue type configuration
+        apply_colors_to_pie_chart(pie_time, sorted(time_by_type.keys()), get_issue_type_color)
         
         # Configure chart appearance - show only value and percentage
         pie_time.dataLabels = DataLabelList()
@@ -321,6 +334,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 pie_sprint_status.add_data(data_sprint_status, titles_from_data=False)
                 pie_sprint_status.set_categories(labels_sprint_status)
                 
+                # Apply colors based on status configuration
+                apply_colors_to_pie_chart(pie_sprint_status, sorted(sprint_status_counts.keys()), get_status_color)
+                
                 # Configure chart appearance - show only value and percentage
                 pie_sprint_status.dataLabels = DataLabelList()
                 pie_sprint_status.dataLabels.showCatName = False  # Don't show category name
@@ -366,6 +382,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 
                 pie_sprint_type.add_data(data_sprint_type, titles_from_data=False)
                 pie_sprint_type.set_categories(labels_sprint_type)
+                
+                # Apply colors based on issue type configuration
+                apply_colors_to_pie_chart(pie_sprint_type, sorted(sprint_type_counts.keys()), get_issue_type_color)
                 
                 # Configure chart appearance - show only value and percentage
                 pie_sprint_type.dataLabels = DataLabelList()
@@ -428,6 +447,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 pie_sprint_status.add_data(data_sprint_status, titles_from_data=False)
                 pie_sprint_status.set_categories(labels_sprint_status)
                 
+                # Apply colors based on status configuration
+                apply_colors_to_pie_chart(pie_sprint_status, sorted(sprint_status_counts.keys()), get_status_color)
+                
                 # Configure chart appearance - show only value and percentage
                 pie_sprint_status.dataLabels = DataLabelList()
                 pie_sprint_status.dataLabels.showCatName = False  # Don't show category name
@@ -473,6 +495,9 @@ def create_clean_charts_sheet(wb, issues, worklogs=None, issues_by_sprint=None):
                 
                 pie_sprint_type.add_data(data_sprint_type, titles_from_data=False)
                 pie_sprint_type.set_categories(labels_sprint_type)
+                
+                # Apply colors based on issue type configuration
+                apply_colors_to_pie_chart(pie_sprint_type, sorted(sprint_type_counts.keys()), get_issue_type_color)
                 
                 # Configure chart appearance - show only value and percentage
                 pie_sprint_type.dataLabels = DataLabelList()
