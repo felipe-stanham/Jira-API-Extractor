@@ -4,7 +4,7 @@ from openpyxl import Workbook
 from openpyxl.chart import PieChart, BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from collections import Counter
-from charts_helper_improved import create_clean_charts_sheet
+from charts_helper_enhanced import create_clean_charts_sheet
 
 class ExcelExporter:
     """Handles Excel export functionality."""

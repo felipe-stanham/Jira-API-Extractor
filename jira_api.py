@@ -270,13 +270,11 @@ class JiraAPIClient:
                         if issue_key:
                             sprint_info_list = self.get_issue_sprints(issue_key)
                             if sprint_info_list:
-                                # Format sprint information for display
+                                # Format sprint information for display (name only)
                                 sprint_names = []
                                 for sprint in sprint_info_list:
                                     sprint_name = sprint.get('name', 'Unknown')
-                                    sprint_id = sprint.get('id', 'Unknown')
-                                    sprint_state = sprint.get('state', 'Unknown')
-                                    sprint_names.append(f"{sprint_name} (ID: {sprint_id}, {sprint_state})")
+                                    sprint_names.append(sprint_name)
                                 issue_sprint_cache[issue_id] = "; ".join(sprint_names)
                             else:
                                 issue_sprint_cache[issue_id] = 'N/A'
@@ -363,13 +361,11 @@ class JiraAPIClient:
             for issue_key in unique_issue_keys:
                 sprint_info_list = self.get_issue_sprints(issue_key)
                 if sprint_info_list:
-                    # Format sprint information for display
+                    # Format sprint information for display (name only)
                     sprint_names = []
                     for sprint in sprint_info_list:
                         sprint_name = sprint.get('name', 'Unknown')
-                        sprint_id = sprint.get('id', 'Unknown')
-                        sprint_state = sprint.get('state', 'Unknown')
-                        sprint_names.append(f"{sprint_name} (ID: {sprint_id}, {sprint_state})")
+                        sprint_names.append(sprint_name)
                     issue_sprint_cache[issue_key] = "; ".join(sprint_names)
                 else:
                     issue_sprint_cache[issue_key] = 'N/A'
