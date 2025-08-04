@@ -23,28 +23,91 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-def load_config():
-    """Load configuration from .env file if it exists."""
+def get_config_file_path():
+    """Get the path for the user's JiraExtractor.env file, handling bundled executables."""
+    # For bundled executables, save config in the same directory as the executable
+    if getattr(sys, 'frozen', False):
+        # Running as bundled executable
+        if sys.platform == 'darwin' and '.app' in sys.executable:
+            # macOS .app bundle - save config next to the .app
+            app_dir = os.path.dirname(os.path.dirname(os.path.dirname(sys.executable)))
+            return os.path.join(app_dir, 'JiraExtractor.env')
+        else:
+            # Other bundled executables - save next to executable
+            exe_dir = os.path.dirname(sys.executable)
+            return os.path.join(exe_dir, 'JiraExtractor.env')
+    else:
+        # Running from source - use current directory
+        return 'JiraExtractor.env'
+
+def load_bundled_template():
+    """Load the bundled .env.example template."""
     config = {}
-    if os.path.exists('.env'):
-        with open('.env', 'r') as f:
-            for line in f:
-                line = line.strip()
-                if '=' in line and not line.startswith('#'):
-                    key, value = line.split('=', 1)
-                    config[key] = value.strip('"').strip("'")
+    template_paths = ['.env.example', 'env.example']  # Try multiple locations
+    
+    for template_path in template_paths:
+        if os.path.exists(template_path):
+            try:
+                with open(template_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if '=' in line and not line.startswith('#'):
+                            key, value = line.split('=', 1)
+                            # Only load non-placeholder values
+                            value = value.strip('"').strip("'")
+                            if not value.startswith('your-') and value != 'your-api-token':
+                                config[key] = value
+                break
+            except Exception:
+                continue
+    return config
+
+def load_config():
+    """Load configuration from user's JiraExtractor.env file or bundled template."""
+    config_path = get_config_file_path()
+    config = {}
+    
+    # First, try to load user's saved config
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        config[key] = value.strip('"').strip("'")
+        except Exception as e:
+            st.warning(f"Could not load saved config: {e}")
+    
+    # If no user config, try to load from bundled template
+    if not config:
+        config = load_bundled_template()
+    
     return config
 
 def save_config(url, email, token):
-    """Save configuration to .env file."""
+    """Save configuration to user's JiraExtractor.env file."""
+    config_path = get_config_file_path()
+    
     try:
-        with open('.env', 'w') as f:
+        # Ensure the directory exists (only if there's a directory path)
+        config_dir = os.path.dirname(config_path)
+        if config_dir:  # Only create directory if path has a directory component
+            os.makedirs(config_dir, exist_ok=True)
+        
+        with open(config_path, 'w') as f:
             f.write(f'JIRA_API_URL="{url}"\n')
             f.write(f'JIRA_USER_EMAIL="{email}"\n')
             f.write(f'JIRA_API_TOKEN="{token}"\n')
+            
+            # Add optional port setting if it exists in environment
+            if 'STREAMLIT_PORT' in os.environ:
+                f.write(f'STREAMLIT_PORT={os.environ["STREAMLIT_PORT"]}\n')
+        
         return True
     except Exception as e:
         st.error(f"Failed to save configuration: {str(e)}")
+        st.error(f"Attempted to save to: {config_path}")
         return False
 
 def run_extraction(project, sprint_ids, start_date, end_date, progress_placeholder, log_placeholder):
@@ -152,16 +215,27 @@ def main():
         if st.button("💾 Save Configuration", use_container_width=True):
             if jira_url and jira_email and jira_token:
                 if save_config(jira_url, jira_email, jira_token):
+                    config_path = get_config_file_path()
                     st.success("✅ Configuration saved!")
+                    st.info(f"📁 Saved to: {os.path.basename(config_path)}")
+                    st.info(f"📍 Location: {os.path.abspath(config_path)}")
                     st.rerun()
             else:
                 st.error("❌ Please fill in all configuration fields")
         
         # Configuration status
+        config_path = get_config_file_path()
         if jira_url and jira_email and jira_token:
-            st.success("✅ Configuration complete")
+            if os.path.exists(config_path):
+                st.success("✅ Configuration complete")
+                st.info(f"📁 Config file: {os.path.basename(config_path)}")
+            else:
+                st.warning("⚠️ Configuration complete but not saved. Click 'Save Configuration' to persist settings.")
         else:
-            st.warning("⚠️ Please configure your Jira settings")
+            if os.path.exists(config_path):
+                st.info(f"📝 Found existing config: {os.path.basename(config_path)}")
+            else:
+                st.warning("⚠️ Please configure your Jira settings")
     
     # Main content area
     col1, col2 = st.columns([1, 1])

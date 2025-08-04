@@ -1,140 +1,222 @@
-# Jira API Extractor
+# Jira API Extractor - GUI Application
 
-This is a modular terminal application to extract information from Jira and export it to an Excel file with improved performance and organization.
+A user-friendly Jira data extraction tool with a modern web interface. Extract issues, worklogs, and comments from Jira projects and export them to Excel with rich visualizations.
 
 ## Features
 
-- **Modular Architecture**: Clean separation of concerns with dedicated modules for API, configuration, utilities, and Excel export
-- **Comprehensive Pagination**: Handles large datasets by automatically paginating through all results
-- **Efficient Data Extraction**: 
-  - Extract all issues from a specific sprint
-  - Extract all work logs within a specified date range (project-wide, not limited to sprint)
-  - Extract all comments made within a specified date range (project-wide, not limited to sprint)
-- **Flexible Input Handling**: Conditionally fetch data based on provided arguments (sprint, dates, or both)
-- **Enhanced Excel Export**: Export data into a single `.xlsx` file with separate sheets for "Sprint Issues", "Work Logs", "Comments", and "Charts"
-- **Visual Analytics**: Multiple charts in dedicated Charts sheet:
-  - Pie chart for issue status distribution
-  - Pie chart for issues by type
-  - Pie chart for total time by issue type
-  - Bar chart for time spent by author and issue type
-- **Formula-Based Analytics**: All chart data uses Excel formulas for dynamic updates
-- **Robust Validation**: Input validation for dates, configuration, and data integrity
+- **🖥️ Modern Web Interface**: Beautiful Streamlit-based GUI that runs in your browser
+- **📦 Standalone Application**: No Python installation required - just double-click to run
+- **⚙️ In-App Configuration**: Configure Jira credentials directly in the application
+- **📊 Rich Data Extraction**: 
+  - Extract all issues from specific sprints
+  - Extract work logs within date ranges (project-wide)
+  - Extract comments made within date ranges (project-wide)
+- **📈 Advanced Excel Export**: Export to `.xlsx` with multiple sheets and charts:
+  - Sprint Issues with full details
+  - Work Logs with time tracking
+  - Comments with timestamps
+  - Charts with visual analytics
+- **🎨 Visual Analytics**: Comprehensive charts in dedicated Charts sheet:
+  - Issues by status (pie chart)
+  - Issues by type (pie chart) 
+  - Time by issue type per sprint (pie charts)
+  - Time by issue type across sprints (stacked bar chart)
+- **🔄 Real-time Progress**: Live progress updates during data extraction
+- **💾 Persistent Settings**: Configuration saved automatically for future use
 
-## Project Structure
+## 🚀 Quick Start (For End Users)
 
+### Download & Run
+1. **Download** the latest release: `JiraExtractor_macos_standalone.zip`
+2. **Extract** the zip file
+3. **Double-click** `JiraExtractorGUI_macos.app` to launch
+4. **Configure** your Jira credentials in the sidebar (first time only)
+5. **Extract** your data using the web interface!
+
+### First-Time Setup
+1. The app will open in your default web browser
+2. In the sidebar, enter your Jira details:
+   - **Jira URL**: `https://your-company.atlassian.net`
+   - **Email**: Your Jira login email
+   - **API Token**: [Get your token here](https://id.atlassian.com/manage-profile/security/api-tokens)
+3. Click **"💾 Save Configuration"**
+4. Your settings are saved to `JiraExtractor.env` for future use
+
+## 🛠️ For Developers
+
+### Project Structure
 ```
-├── main.py              # Main application entry point
-├── config.py            # Configuration and authentication management
-├── jira_api.py          # Jira API client with pagination support
-├── excel_exporter.py    # Excel export functionality with charts
-├── charts_helper_improved.py # Enhanced chart creation functions with color support
-├── chart_colors.py      # Color configuration for consistent chart styling
-├── utils.py             # Utility functions (ADF parsing, pagination)
-├── requirements.txt     # Python dependencies
-├── .env.example         # Environment variables template
-└── README.md           # This file
+├── main.py                    # CLI entry point (for developers)
+├── run_gui.py                 # GUI launcher
+├── streamlit_app.py           # Streamlit web interface
+├── config.py                  # Configuration management (uses JiraExtractor.env)
+├── jira_api.py                # Jira API client with pagination
+├── excel_exporter.py          # Excel export with charts
+├── charts_helper_enhanced.py  # Chart creation functions
+├── chart_colors.py            # Chart color schemes
+├── utils.py                   # Utility functions
+├── build_executables.py       # Build script for standalone app
+├── requirements.txt           # Python dependencies
+├── .env.example               # Template for JiraExtractor.env
+└── README.md                  # This file
 ```
 
-## Setup
+### Development Setup
+1. **Clone** the repository
+2. **Install** dependencies: `pip install -r requirements.txt`
+3. **Create** `JiraExtractor.env` based on `.env.example`
+4. **Run** the GUI: `python3 run_gui.py`
+5. **Or run** CLI: `python3 main.py --project YOUR_PROJECT --sprint SPRINT_ID`
 
-1. Clone the repository.
-2. Install the dependencies: `pip install -r requirements.txt`
-3. Create a `.env` file based on the `.env.example` and fill in your Jira details (URL, email, and API token).
+## 📱 Using the GUI Application
 
-## Usage
+### Main Interface
+1. **Project Code**: Enter your Jira project key (e.g., "NG", "PROJ")
+2. **Sprint IDs**: Enter sprint IDs separated by commas (e.g., "123,124,125")
+3. **Date Range**: Use date pickers for worklog/comment extraction
+4. **Quick Buttons**: 
+   - Last 7 days
+   - Last 30 days  
+   - This month
+   - Last month
 
-The script is run from the command line and accepts several arguments to control what data is extracted.
+### Extraction Options
+- **Sprint + Date Range**: Get sprint issues AND worklogs/comments in date range
+- **Sprint Only**: Get only sprint issues
+- **Date Range Only**: Get only worklogs/comments in date range
+
+### Real-time Progress
+- Live progress bar during extraction
+- Detailed logs showing current operation
+- Automatic file download when complete
+
+## 💻 CLI Usage (For Developers)
 
 ### Arguments
-
-- `--project`: (Required) The key for your Jira project (e.g., `NG`).
-- `--sprint`: (Optional) The ID of the sprint you want to extract issues from.
-- `--start_date`: (Optional) The start date for extracting work logs and comments (`YYYY-MM-DD`).
-- `--end_date`: (Optional) The end date for extracting work logs and comments (`YYYY-MM-DD`).
-
-**Note:** `--start_date` and `--end_date` must be used together.
+- `--project`: (Required) Jira project key (e.g., `NG`)
+- `--sprint`: (Optional) Sprint ID(s), comma-separated
+- `--start_date`: (Optional) Start date (`YYYY-MM-DD`)
+- `--end_date`: (Optional) End date (`YYYY-MM-DD`)
 
 ### Examples
-
-**1. Get all data (Sprint Issues, Work Logs, and Comments):**
-
 ```bash
+# Get sprint issues + worklogs in date range
 python3 main.py --project NG --sprint 528 --start_date 2025-07-14 --end_date 2025-07-18
-```
 
-**2. Get only Sprint Issues:**
-
-```bash
+# Get only sprint issues
 python3 main.py --project NG --sprint 528
-```
 
-**3. Get only Work Logs and Comments for a date range:**
-
-```bash
+# Get only worklogs/comments in date range
 python3 main.py --project NG --start_date 2025-07-14 --end_date 2025-07-18
 ```
 
-## Improvements in This Version
+## 🏗️ Building Standalone Application
 
-### 1. **Complete Pagination Support**
-- No data loss even in large projects with thousands of issues/worklogs/comments
-- Automatic handling of Jira API pagination limits
-
-### 2. **Efficient Worklog Extraction**
-- Uses Jira's worklog search API for better performance
-- Fetches all worklogs in date range regardless of sprint association
-- Fallback mechanism for compatibility
-
-### 3. **Modular Architecture**
-- `config.py`: Centralized configuration management
-- `jira_api.py`: API client with improved error handling
-- `excel_exporter.py`: Dedicated Excel export with chart generation
-- `utils.py`: Reusable utility functions
-
-### 4. **Enhanced Charts**
-- **Multiple chart types**: Pie charts for status/type distribution, bar charts for time analysis
-- **Formula-based calculations**: All chart data uses Excel formulas for dynamic updates
-- **Comprehensive analytics**: Issues by status, issues by type, time by type, time by author
-- **Professional layout**: Charts positioned in dedicated sheet with proper spacing
-
-### 5. **Improved Validation**
-- Configuration validation on startup
-- Date format validation
-- Date range validation
-- Better error messages
-
-## Output
-
-The script generates an Excel file (`JiraExport.xlsx`) with up to 4 sheets:
-
-1. **Sprint Issues**: List of issues in the specified sprint
-2. **Work Logs**: All worklogs in the date range for the project
-3. **Comments**: All comments in the date range for the project  
-4. **Charts**: Visual analytics including:
-   - Pie chart for issues by status
-   - Pie chart for issues by type  
-   - Pie chart for total time by issue type
-   - Bar chart for time spent by author and issue type
-   - Summary statistics with formula-based calculations
-
-## Error Handling
-
-The application includes comprehensive error handling for:
-- Missing or invalid configuration
-- API authentication failures
-- Network connectivity issues
-- Invalid date formats or ranges
-- Empty result sets
-
-## Performance Notes
-
-- Uses efficient API endpoints where possible
-- Implements proper pagination to handle large datasets
-- Includes fallback mechanisms for API compatibility
-- Optimized for minimal API calls while ensuring complete data retrieval
-
-If you see a `NotOpenSSLWarning`, you can safely suppress it by prefixing the command with `PYTHONWARNINGS="ignore:NotOpenSSLWarning"`:
-
+### For Developers: Creating Distribution
 ```bash
-PYTHONWARNINGS="ignore:NotOpenSSLWarning" python3 main.py --project NG --sprint 528
+# Build the standalone .app bundle for macOS
+python3 build_executables.py
+
+# Output will be in dist/
+# - JiraExtractorGUI_macos.app (the main app)
+# - JiraExtractor_macos_standalone.zip (distribution package)
 ```
+
+### Build Requirements
+- Python 3.9+
+- PyInstaller
+- All project dependencies
+
+### Distribution Package Contents
+- `JiraExtractorGUI_macos.app` - The main application
+- `JiraExtractor.env` - Configuration template
+- `README.txt` - User instructions
+
+## 🎯 Key Features
+
+### 1. **Modern GUI Interface**
+- Beautiful Streamlit web interface
+- Real-time progress tracking
+- In-app configuration management
+- Automatic browser opening
+
+### 2. **Comprehensive Data Extraction**
+- Complete pagination support for large datasets
+- Sprint issues with full details
+- Project-wide worklogs and comments
+- Flexible date range selection
+
+### 3. **Advanced Excel Export**
+- Multiple sheets with rich formatting
+- Dynamic charts with professional styling
+- Formula-based calculations
+- Color-coded visualizations
+
+### 4. **User-Friendly Configuration**
+- No hidden files (uses `JiraExtractor.env`)
+- In-app credential management
+- Persistent settings across sessions
+- Multiple apps can coexist in same folder
+
+## 📊 Output
+
+The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 4 sheets:
+
+### 1. **Sprint Issues Sheet**
+- Complete issue details (key, summary, status, type, assignee, etc.)
+- Sprint information and story points
+- Links and priority information
+- Formatted for easy reading
+
+### 2. **Work Logs Sheet** 
+- Time entries with author and date
+- Issue keys and descriptions
+- Sprint associations
+- Time spent calculations
+
+### 3. **Comments Sheet**
+- All comments with timestamps
+- Author information
+- Issue context
+- Formatted comment content
+
+### 4. **Charts Sheet**
+- **Issues by Status**: Pie chart showing distribution
+- **Issues by Type**: Pie chart for issue types
+- **Time by Type per Sprint**: Individual pie charts for each sprint
+- **Time by Type (Stacked)**: Horizontal bar chart across all sprints
+- **Summary Statistics**: Formula-based calculations
+
+## 🔧 Configuration
+
+### JiraExtractor.env File
+The app uses `JiraExtractor.env` for configuration:
+```env
+JIRA_API_URL="https://your-company.atlassian.net"
+JIRA_USER_EMAIL="your-email@company.com"
+JIRA_API_TOKEN="your-api-token"
+STREAMLIT_PORT=8501
+```
+
+### Getting Your API Token
+1. Go to [Atlassian API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
+2. Click "Create API token"
+3. Give it a name (e.g., "Jira Extractor")
+4. Copy the token and paste it in the app
+
+## 🚨 Troubleshooting
+
+### Common Issues
+- **App won't launch**: Make sure you're double-clicking the `.app` file, not the executable inside
+- **Configuration won't save**: Check that you have write permissions in the app directory
+- **No data extracted**: Verify your Jira credentials and project access
+- **Charts not showing**: Ensure you have data in the corresponding sheets
+
+### For Developers
+- **SSL Warnings**: Suppress with `PYTHONWARNINGS="ignore:NotOpenSSLWarning"`
+- **Port conflicts**: Change `STREAMLIT_PORT` in `JiraExtractor.env`
+- **Build issues**: Ensure all dependencies are installed
+
+---
+
+**Jira API Extractor v2.0** - Built with ❤️ using Python, Streamlit, and PyInstaller

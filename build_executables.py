@@ -61,7 +61,6 @@ def create_gui_executable():
     # PyInstaller command for GUI
     gui_command = [
         "python3", "-m", "PyInstaller",
-        "--onefile",
         "--windowed",  # No console window for GUI
         "--name", f"JiraExtractorGUI_{platform_name}",
         "--add-data", ".env.example:.",
@@ -74,45 +73,26 @@ def create_gui_executable():
         "--add-data", "main.py:.",
         "--add-data", "streamlit_app.py:.",
         "--hidden-import", "streamlit",
+        "--hidden-import", "streamlit.web.cli",
+        "--hidden-import", "streamlit.runtime.scriptrunner.magic_funcs",
+        "--hidden-import", "streamlit.runtime.caching",
+        "--hidden-import", "streamlit.runtime.state",
         "--hidden-import", "openpyxl",
         "--hidden-import", "requests",
         "--hidden-import", "python_dotenv",
-        "--hidden-import", "streamlit.web.cli",
-        "--hidden-import", "streamlit.runtime.scriptrunner.magic_funcs",
         "--collect-all", "streamlit",
+        "--collect-all", "altair",
+        "--collect-all", "plotly",
         "run_gui.py"
     ]
     
+    # For macOS, remove --onefile to create .app bundle instead of single executable
+    if current_platform != 'darwin':
+        gui_command.insert(3, "--onefile")
+    
     return run_command(gui_command)
 
-def create_cli_executable():
-    """Create standalone CLI executable."""
-    print_header("Building CLI Executable")
-    
-    # Determine platform
-    current_platform = platform.system().lower()
-    platform_name = 'macos' if current_platform == 'darwin' else 'windows'
-    
-    # PyInstaller command for CLI
-    cli_command = [
-        "python3", "-m", "PyInstaller",
-        "--onefile",
-        "--console",  # Keep console window for CLI
-        "--name", f"JiraExtractorCLI_{platform_name}",
-        "--add-data", ".env.example:.",
-        "--add-data", "chart_colors.py:.",
-        "--add-data", "charts_helper_enhanced.py:.",
-        "--add-data", "config.py:.",
-        "--add-data", "excel_exporter.py:.",
-        "--add-data", "jira_api.py:.",
-        "--add-data", "utils.py:.",
-        "--hidden-import", "openpyxl",
-        "--hidden-import", "requests",
-        "--hidden-import", "python_dotenv",
-        "main.py"
-    ]
-    
-    return run_command(cli_command)
+# CLI executable removed - users can install dependencies if they need CLI access
 
 def create_distribution_package():
     """Create a distribution package with executables and documentation."""
@@ -134,50 +114,47 @@ def create_distribution_package():
         gui_exe += ".exe"
         cli_exe += ".exe"
     
-    # Copy GUI executable
-    gui_src = dist_dir / gui_exe
-    cli_src = dist_dir / cli_exe
-    
-    if gui_src.exists():
-        shutil.copy2(gui_src, package_dir / ("JiraExtractorGUI.exe" if current_platform == 'windows' else "JiraExtractorGUI"))
-        print(f"Copied GUI executable")
-    
-    if cli_src.exists():
-        shutil.copy2(cli_src, package_dir / ("JiraExtractorCLI.exe" if current_platform == 'windows' else "JiraExtractorCLI"))
-        print(f"Copied CLI executable")
+    # Copy GUI executable to package directory
+    if current_platform == 'darwin':
+        # For macOS, copy the entire .app bundle
+        gui_app_src = dist_dir / f"JiraExtractorGUI_{platform_name}.app"
+        if gui_app_src.exists():
+            shutil.copytree(gui_app_src, package_dir / f"JiraExtractorGUI_{platform_name}.app")
+            print(f"Copied GUI app bundle: {gui_app_src.name}")
+    else:
+        # For Windows, copy the executable file
+        gui_src = dist_dir / f"JiraExtractorGUI_{platform_name}.exe"
+        if gui_src.exists():
+            shutil.copy2(gui_src, package_dir / "JiraExtractorGUI.exe")
+            print(f"Copied GUI executable: {gui_src.name}")
     
     # Make executables executable on macOS
     if current_platform == 'darwin':
         for exe_file in package_dir.glob("JiraExtractor*"):
             os.chmod(exe_file, 0o755)
     
-    # Copy configuration files
-    shutil.copy2(".env.example", package_dir / ".env")
-    print("Copied .env configuration file")
+    # Copy .env.example as JiraExtractor.env for user configuration
+    shutil.copy2(".env.example", package_dir / "JiraExtractor.env")
+    print("Copied JiraExtractor.env configuration file")
     
     # Create README for users
-    readme_content = f"""# Jira Data Extractor - Standalone Version
+    readme_content = f"""# Jira Data Extractor - GUI Application
 
 ## Quick Start
 
-1. **Configure your Jira credentials:**
-   - Edit the `.env` file in this folder
-   - Add your Jira URL, email, and API token
+1. **Run the application:**
+   {"- Double-click `JiraExtractorGUI_windows.exe`" if current_platform == 'windows' else "- Double-click `JiraExtractorGUI_macos.app`"}
+   - A web interface will open in your browser automatically
+   - Configure your Jira credentials in the sidebar
+   - Fill in the extraction form and click "Run Extraction"
 
-2. **Run the application:**
-   
-   ### GUI Version (Recommended for non-technical users):
-   {"- Double-click `JiraExtractorGUI.exe`" if current_platform == 'windows' else "- Double-click `JiraExtractorGUI`"}
-   - A web interface will open in your browser
-   - Fill in the form and click "Run Extraction"
-   
-   ### Command Line Version:
-   {"- Open Command Prompt in this folder" if current_platform == 'windows' else "- Open Terminal in this folder"}
-   {"- Run: `JiraExtractorCLI.exe --project YOUR_PROJECT --sprint SPRINT_ID`" if current_platform == 'windows' else "- Run: `./JiraExtractorCLI --project YOUR_PROJECT --sprint SPRINT_ID`"}
+2. **First-time setup:**
+   - The app will prompt you to enter your Jira credentials
+   - Your settings will be saved to `JiraExtractor.env` for future use
 
 ## Configuration
 
-Edit the `.env` file with your Jira details:
+The app will create a `JiraExtractor.env` file with your Jira details:
 
 ```
 JIRA_API_URL="https://your-domain.atlassian.net"
@@ -188,28 +165,22 @@ JIRA_USER_EMAIL="your-email@example.com"
 To get your API token:
 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
 2. Click "Create API token"
-3. Copy the token to the `.env` file
+3. Enter it in the app's configuration sidebar
 
-## Usage Examples
+## Usage
 
-### GUI Version:
-- Just double-click and use the web interface!
-
-### CLI Version:
-```bash
-# Get issues from a sprint
-{"JiraExtractorCLI.exe" if current_platform == 'windows' else "./JiraExtractorCLI"} --project NG --sprint 123
-
-# Get worklogs for a date range
-{"JiraExtractorCLI.exe" if current_platform == 'windows' else "./JiraExtractorCLI"} --project NG --start_date 2025-01-01 --end_date 2025-01-31
-
-# Combine both
-{"JiraExtractorCLI.exe" if current_platform == 'windows' else "./JiraExtractorCLI"} --project NG --sprint 123 --start_date 2025-01-01 --end_date 2025-01-31
-```
+1. **Double-click the app** to launch
+2. **Configure credentials** in the sidebar (first time only)
+3. **Enter project details:**
+   - Project code (e.g., "NG")
+   - Sprint IDs (comma-separated, e.g., "123,124")
+   - Or date range for worklogs
+4. **Click "Run Extraction"** and wait for completion
+5. **Download the Excel file** when ready
 
 ## Output
 
-Both versions create an Excel file (`JiraExport.xlsx`) with:
+The app creates an Excel file (`JiraExport.xlsx`) with:
 - Sprint Issues sheet
 - Work Logs sheet  
 - Comments sheet
@@ -249,7 +220,7 @@ Jira Data Extractor v1.1 - Built with ❤️
 
 def main():
     """Main build function."""
-    print_header("Jira API Extractor - Standalone Build")
+    print_header("Jira API Extractor - GUI Build")
     
     # Check platform
     current_platform = platform.system().lower()
@@ -264,14 +235,9 @@ def main():
     # Clean previous builds
     clean_build_dirs()
     
-    # Build GUI executable
+    # Build GUI executable only
     if not create_gui_executable():
-        print("❌ Failed to build GUI executable")
-        return 1
-    
-    # Build CLI executable
-    if not create_cli_executable():
-        print("❌ Failed to build CLI executable")
+        print("❌ GUI build failed")
         return 1
     
     # Create distribution package
@@ -280,13 +246,20 @@ def main():
         return 1
     
     print_header("Build Complete!")
-    print(f"✅ Successfully built standalone executables for {platform_name}")
-    print(f"📦 Distribution package: dist/JiraExtractor_{current_platform}_standalone.zip")
-    print("\n🎉 Ready for distribution! Users can:")
-    print("   1. Download and unzip the package")
-    print("   2. Edit the .env file with their Jira credentials")
-    print("   3. Double-click the executable to run")
-    print("   4. No Python or dependencies installation required!")
+    print(f"✅ Successfully built GUI executable for {platform_name}")
+    
+    if current_platform == 'darwin':
+        print(f"📱 macOS App Bundle: dist/JiraExtractorGUI_macos.app")
+        print("\n🎉 Ready for distribution! Users can:")
+        print("   1. Double-click the .app file to run")
+        print("   2. Configure Jira credentials in the app")
+        print("   3. No Python or dependencies installation required!")
+    else:
+        print(f"💻 Windows Executable: dist/JiraExtractorGUI_windows.exe")
+        print("\n🎉 Ready for distribution! Users can:")
+        print("   1. Double-click the .exe file to run")
+        print("   2. Configure Jira credentials in the app")
+        print("   3. No Python or dependencies installation required!")
     
     return 0
 

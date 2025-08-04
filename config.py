@@ -1,10 +1,28 @@
 """Configuration module for Jira API Extractor."""
 
 import os
+import sys
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+def get_config_file_path():
+    """Get the path for JiraExtractor.env file, handling bundled executables."""
+    if getattr(sys, 'frozen', False):
+        # Running as bundled executable
+        if sys.platform == 'darwin' and '.app' in sys.executable:
+            # macOS .app bundle - config next to the .app
+            app_dir = os.path.dirname(os.path.dirname(os.path.dirname(sys.executable)))
+            return os.path.join(app_dir, 'JiraExtractor.env')
+        else:
+            # Other bundled executables - config next to executable
+            exe_dir = os.path.dirname(sys.executable)
+            return os.path.join(exe_dir, 'JiraExtractor.env')
+    else:
+        # Running from source - use current directory
+        return 'JiraExtractor.env'
+
+# Load environment variables from JiraExtractor.env file
+config_file = get_config_file_path()
+load_dotenv(config_file)
 
 # Jira API credentials from environment variables
 JIRA_API_URL = os.getenv("JIRA_API_URL")
