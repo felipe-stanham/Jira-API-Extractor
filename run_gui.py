@@ -77,25 +77,38 @@ def run_streamlit_safely(port):
         import streamlit.web.cli as stcli
         
         if getattr(sys, 'frozen', False):
-            # Running as packaged executable - use simple approach to avoid recursion
+            # Running as packaged executable - use robust configuration
             print("📦 Running as packaged executable")
-            print(f"🌍 Starting Streamlit (will auto-detect port)")
+            print(f"🌍 Starting Streamlit on port {port}")
             
             # Get the correct path to streamlit_app.py in the bundle
             import os
             if hasattr(sys, '_MEIPASS'):
-                # PyInstaller bundle
-                app_path = os.path.join(sys._MEIPASS, 'streamlit_app.py')
+                # PyInstaller bundle - set up environment for Streamlit
+                bundle_dir = sys._MEIPASS
+                app_path = os.path.join(bundle_dir, 'streamlit_app.py')
+                
+                # Set environment variables for Streamlit static files
+                os.environ['STREAMLIT_STATIC_PATH'] = bundle_dir
+                os.environ['STREAMLIT_SERVER_ENABLE_STATIC_SERVING'] = 'true'
+                
+                # Change to bundle directory to ensure relative imports work
+                original_cwd = os.getcwd()
+                os.chdir(bundle_dir)
+                print(f"📁 Changed working directory from {original_cwd} to: {bundle_dir}")
             else:
                 app_path = 'streamlit_app.py'
             
             print(f"📁 Using app path: {app_path}")
             
-            # For packaged executables, let Streamlit choose its own port
+            # For packaged executables, use minimal configuration to avoid conflicts
             sys.argv = [
                 "streamlit", "run", app_path,
+                "--server.port", str(port),
+                "--server.address", "localhost",
                 "--browser.gatherUsageStats", "false",
-                "--server.headless", "false"  # Let Streamlit handle browser opening
+                "--server.headless", "true",  # Don't let Streamlit auto-open browser
+                "--global.developmentMode", "false"
             ]
         else:
             # Running from source - use configured port
@@ -129,6 +142,15 @@ def main():
     # Get port from JiraExtractor.env file or use default
     port = int(os.getenv('STREAMLIT_PORT', '8501'))
     print(f"🌐 Starting on port {port}")
+    
+    # For packaged executables, start browser opening in background
+    if getattr(sys, 'frozen', False):
+        browser_thread = threading.Thread(
+            target=open_browser_when_ready, 
+            args=(port,)
+        )
+        browser_thread.daemon = True
+        browser_thread.start()
     
     # Run Streamlit safely
     try:
