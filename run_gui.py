@@ -39,38 +39,76 @@ def is_port_open(port):
     return result == 0
 
 def open_browser_when_ready(expected_port, max_wait=20):
-    """Open browser when the Streamlit server is ready, with robust port detection."""
-    print(f"🔍 Looking for Streamlit server...")
+    """Open browser when the Streamlit server is ready, with single tab opening."""
+    print(f"🔍 Looking for Streamlit server on port {expected_port}...")
     
     # Give Streamlit time to start up
     time.sleep(3)
     
-    # Check common Streamlit ports in order of likelihood
-    ports_to_try = [3000, 8501, expected_port, 8502, 8503, 3001]
-    
+    # First, try the expected port (from config)
     for attempt in range(max_wait):
-        for port in ports_to_try:
-            if is_port_open(port):
-                url = f"http://localhost:{port}"
-                print(f"🌍 Found server on port {port}, opening browser...")
-                webbrowser.open(url)
-                return True
-        
-        # Wait a bit before trying again
+        if is_port_open(expected_port):
+            url = f"http://localhost:{expected_port}"
+            print(f"🌍 Found server on expected port {expected_port}, opening browser...")
+            webbrowser.open(url)
+            return True
         time.sleep(1)
     
-    # If we get here, try to open the most likely ports anyway
-    print(f"🔍 Server detection timed out, trying common ports...")
-    for port in [3000, 8501]:
-        url = f"http://localhost:{port}"
-        print(f"🌍 Opening browser at {url} (best guess)")
-        webbrowser.open(url)
-        time.sleep(2)  # Give user time to see if it works
+    # If expected port doesn't work, try common Streamlit defaults
+    print(f"🔍 Expected port {expected_port} not responding, trying defaults...")
+    fallback_ports = [8501, 3000] if expected_port not in [8501, 3000] else [3000, 8501]
     
+    for port in fallback_ports:
+        if is_port_open(port):
+            url = f"http://localhost:{port}"
+            print(f"🌍 Found server on fallback port {port}, opening browser...")
+            webbrowser.open(url)
+            return True
+    
+    # Last resort - open expected port anyway
+    url = f"http://localhost:{expected_port}"
+    print(f"🌍 Opening browser at {url} (last resort)")
+    webbrowser.open(url)
     return False
 
+def run_streamlit_safely(port):
+    """Run Streamlit safely without subprocess recursion issues."""
+    try:
+        import streamlit.web.cli as stcli
+        
+        if getattr(sys, 'frozen', False):
+            # Running as packaged executable - use simple approach to avoid recursion
+            print("📦 Running as packaged executable")
+            print(f"🌍 Starting Streamlit (will auto-detect port)")
+            
+            # For packaged executables, let Streamlit choose its own port
+            sys.argv = [
+                "streamlit", "run", "streamlit_app.py",
+                "--browser.gatherUsageStats", "false",
+                "--server.headless", "false"  # Let Streamlit handle browser opening
+            ]
+        else:
+            # Running from source - use configured port
+            print("🐍 Running from source")
+            print(f"🌍 Starting on configured port {port}")
+            sys.argv = [
+                "streamlit", "run", "streamlit_app.py",
+                "--server.port", str(port),
+                "--server.headless", "false",
+                "--server.runOnSave", "true",
+                "--browser.gatherUsageStats", "false"
+            ]
+        
+        # Run Streamlit directly
+        stcli.main()
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error running Streamlit: {e}")
+        return False
+
 def main():
-    """Run the Streamlit app with automatic browser opening."""
+    """Main entry point for the GUI launcher."""
     print("🚀 Starting Jira Data Extractor GUI...")
     print("📊 Streamlit interface will open in your default browser")
     
@@ -80,63 +118,22 @@ def main():
     
     # Get port from JiraExtractor.env file or use default
     port = int(os.getenv('STREAMLIT_PORT', '8501'))
-    
-    # URL where Streamlit will run
-    url = f"http://localhost:{port}"
-    
     print(f"🌐 Starting on port {port}")
     
-    # Start browser opening in a separate thread
-    browser_thread = threading.Thread(
-        target=open_browser_when_ready, 
-        args=(port,)
-    )
-    browser_thread.daemon = True
-    browser_thread.start()
-    
-    # Run Streamlit - simplified approach for packaged executables
+    # Run Streamlit safely
     try:
-        import streamlit.web.cli as stcli
-        
-        if getattr(sys, 'frozen', False):
-            # Running as packaged executable - avoid port config issues
-            print("📦 Running as packaged executable")
-            print(f"🌍 Will try to start on port {port}")
+        if not run_streamlit_safely(port):
+            print("💡 Trying fallback approach...")
+            # Fallback to the old method
+            import streamlit.web.cli as stcli
+            sys.argv = ["streamlit", "run", "streamlit_app.py"]
+            stcli.main()
             
-            # For packaged executables, use minimal config to avoid issues
-            sys.argv = [
-                "streamlit", "run", "streamlit_app.py",
-                "--browser.gatherUsageStats", "false",
-                "--server.headless", "false"
-            ]
-        else:
-            # Running from source - full configuration
-            print("🐍 Running from source")
-            sys.argv = [
-                "streamlit", "run", "streamlit_app.py",
-                "--server.port", str(port),
-                "--server.headless", "false",
-                "--server.runOnSave", "true",
-                "--browser.gatherUsageStats", "false"
-            ]
-        
-        # Run Streamlit
-        stcli.main()
-        
     except KeyboardInterrupt:
         print("\n👋 Goodbye!")
     except Exception as e:
         print(f"❌ Error running Streamlit: {e}")
-        print("💡 Trying fallback approach...")
-        
-        # Final fallback - run streamlit without port specification
-        try:
-            import streamlit.web.cli as stcli
-            sys.argv = ["streamlit", "run", "streamlit_app.py"]
-            stcli.main()
-        except Exception as fallback_error:
-            print(f"❌ Fallback also failed: {fallback_error}")
-            print("💡 Please try running from source: python run_gui.py")
+        print("📝 Please run 'python3 streamlit_app.py' manually")
 
 if __name__ == "__main__":
     main()
