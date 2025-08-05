@@ -81,9 +81,19 @@ def run_streamlit_safely(port):
             print("📦 Running as packaged executable")
             print(f"🌍 Starting Streamlit (will auto-detect port)")
             
+            # Get the correct path to streamlit_app.py in the bundle
+            import os
+            if hasattr(sys, '_MEIPASS'):
+                # PyInstaller bundle
+                app_path = os.path.join(sys._MEIPASS, 'streamlit_app.py')
+            else:
+                app_path = 'streamlit_app.py'
+            
+            print(f"📁 Using app path: {app_path}")
+            
             # For packaged executables, let Streamlit choose its own port
             sys.argv = [
-                "streamlit", "run", "streamlit_app.py",
+                "streamlit", "run", app_path,
                 "--browser.gatherUsageStats", "false",
                 "--server.headless", "false"  # Let Streamlit handle browser opening
             ]
