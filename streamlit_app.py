@@ -16,9 +16,66 @@ from io import StringIO
 import webbrowser
 import atexit
 
-# Global variables for heartbeat mechanism
-if 'last_activity' not in st.session_state:
-    st.session_state.last_activity = time.time()
+# Global variables for heartbeat mechanism (thread-safe)
+import threading
+last_activity_lock = threading.Lock()
+last_activity_time = time.time()
+
+# Simple shared timestamp approach - all threads monitor independently
+import tempfile
+import os
+
+def start_heartbeat_thread_once():
+    """Start heartbeat thread - all threads monitor independently using shared timestamp."""
+    # Always start a thread, each monitors independently
+    heartbeat_thread = threading.Thread(target=check_for_inactivity_simple, daemon=True)
+    heartbeat_thread.start()
+    print("Started heartbeat monitoring thread")
+    return True
+
+def check_for_inactivity_simple():
+    """Simple approach - all threads monitor independently using shared timestamp file."""
+    import time
+    import os
+    
+    # Wait 60 seconds of inactivity before auto-shutdown
+    INACTIVITY_TIMEOUT = 60  # 60 seconds
+    thread_id = threading.current_thread().ident
+    
+    # Shared timestamp file
+    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
+    
+    print(f"Heartbeat thread {thread_id} started")
+    
+    while True:
+        time.sleep(10)  # Check every 10 seconds
+        
+        try:
+            # Read last activity from shared file
+            last_activity_from_file = None
+            try:
+                with open(timestamp_file, 'r') as f:
+                    last_activity_from_file = float(f.read().strip())
+            except (FileNotFoundError, ValueError):
+                # File doesn't exist or invalid, use current time
+                last_activity_from_file = time.time()
+                try:
+                    with open(timestamp_file, 'w') as f:
+                        f.write(str(last_activity_from_file))
+                except:
+                    pass
+            
+            print(f"Thread {thread_id} - last_activity_from_file: {last_activity_from_file}")
+            time_since_activity = time.time() - last_activity_from_file
+            print(f"Thread {thread_id} - Time since activity: {time_since_activity:.1f} seconds")
+            
+            if time_since_activity > INACTIVITY_TIMEOUT:
+                print(f"🕐 Thread {thread_id} - No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
+                os._exit(0)
+                
+        except Exception as e:
+            print(f"Thread {thread_id} error: {e}")
+            pass
 
 # Configure Streamlit page
 st.set_page_config(
@@ -28,36 +85,37 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Heartbeat mechanism - update activity timestamp
-st.session_state.last_activity = time.time()
-
-def check_for_inactivity():
-    """Background thread to check for browser inactivity and auto-shutdown."""
-    import time
+# Heartbeat mechanism - update activity timestamp (shared file)
+def update_activity():
+    """Update activity timestamp in shared file so all threads can see it."""
+    import tempfile
     import os
     
-    # Wait 5 minutes of inactivity before auto-shutdown
-    INACTIVITY_TIMEOUT = 300  # 5 minutes
+    current_time = time.time()
+    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
     
-    while True:
-        time.sleep(30)  # Check every 30 seconds
-        
-        # Check if we have session state (app is running)
-        try:
-            if hasattr(st.session_state, 'last_activity'):
-                time_since_activity = time.time() - st.session_state.last_activity
-                if time_since_activity > INACTIVITY_TIMEOUT:
-                    print(f"🕐 No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
-                    os._exit(0)
-        except:
-            # If session state is not available, continue checking
-            pass
+    try:
+        with open(timestamp_file, 'w') as f:
+            f.write(str(current_time))
+        print(f"Activity updated: {current_time}")
+    except Exception as e:
+        print(f"Error updating activity: {e}")
+        pass
+    
+    # Also update global variable for backward compatibility
+    global last_activity_time
+    with last_activity_lock:
+        last_activity_time = current_time
 
-# Start heartbeat monitoring thread (only once)
-if 'heartbeat_started' not in st.session_state:
-    st.session_state.heartbeat_started = True
-    heartbeat_thread = threading.Thread(target=check_for_inactivity, daemon=True)
-    heartbeat_thread.start()
+update_activity()
+
+# Original check_for_inactivity function removed - now using check_for_inactivity_coordinated
+
+# Start heartbeat monitoring thread (only once per process using file lock)
+start_heartbeat_thread_once()
+
+# Always update activity on every page load/refresh
+update_activity()
 
 def get_config_file_path():
     """Get the path for the user's JiraExtractor.env file, handling bundled executables."""
@@ -210,6 +268,74 @@ def run_extraction(project, sprint_ids, start_date, end_date, progress_placehold
 
 def main():
     """Main Streamlit application."""
+    
+    # JavaScript heartbeat to keep server alive while browser is open
+    import streamlit.components.v1 as components
+    
+    # Initialize heartbeat counter in session state
+    if 'heartbeat_counter' not in st.session_state:
+        st.session_state.heartbeat_counter = 0
+        st.session_state.last_heartbeat_time = time.time()
+    
+    # JavaScript heartbeat mechanism using session state
+    heartbeat_js = f"""
+    <script>
+    // Heartbeat mechanism to trigger activity every 30 seconds
+    function sendHeartbeat() {{
+        console.log('💓 Heartbeat triggered at', new Date().toLocaleTimeString());
+        
+        // Find the increment button and click it to trigger Streamlit rerun
+        const buttons = parent.document.querySelectorAll('button');
+        let heartbeatButton = null;
+        
+        for (let button of buttons) {{
+            if (button.textContent.includes('💓')) {{
+                heartbeatButton = button;
+                break;
+            }}
+        }}
+        
+        if (heartbeatButton) {{
+            heartbeatButton.click();
+            console.log('💓 Heartbeat button clicked');
+        }} else {{
+            console.log('💓 Heartbeat button not found, trying alternative method');
+            // Alternative: trigger a focus event on the parent window
+            parent.window.dispatchEvent(new Event('focus'));
+        }}
+    }}
+    
+    // Send heartbeat every 30 seconds
+    setInterval(sendHeartbeat, 30000);
+    
+    // Send initial heartbeat after 5 seconds
+    setTimeout(sendHeartbeat, 5000);
+    
+    console.log('💓 Heartbeat mechanism initialized - will trigger every 30 seconds');
+    </script>
+    """
+    
+    # Inject the JavaScript
+    components.html(heartbeat_js, height=0)
+    
+    # Hidden heartbeat button that JavaScript can click
+    if st.button("💓", key="heartbeat_trigger", help="Heartbeat trigger (hidden)"):
+        st.session_state.heartbeat_counter += 1
+        st.session_state.last_heartbeat_time = time.time()
+        print(f"💓 JavaScript heartbeat #{st.session_state.heartbeat_counter} at {time.time()}")
+        update_activity()
+        st.rerun()
+    
+    # Check if heartbeat is working (show status in sidebar)
+    current_time = time.time()
+    time_since_last_heartbeat = current_time - st.session_state.last_heartbeat_time
+    
+    # Auto-trigger heartbeat if JavaScript isn't working (fallback)
+    if time_since_last_heartbeat > 35:  # 35 seconds = 30s + 5s buffer
+        print(f"💓 Fallback heartbeat triggered (JS heartbeat not working for {time_since_last_heartbeat:.0f}s)")
+        st.session_state.heartbeat_counter += 1
+        st.session_state.last_heartbeat_time = current_time
+        update_activity()
     
     # Header
     st.title("📊 Jira Data Extractor")
