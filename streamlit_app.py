@@ -21,20 +21,57 @@ import threading
 last_activity_lock = threading.Lock()
 last_activity_time = time.time()
 
-# Simple shared timestamp approach - all threads monitor independently
+# Efficient thread management - check if monitoring thread already exists
 import tempfile
 import os
 
+def is_monitoring_thread_active():
+    """Check if a monitoring thread is already active by checking the timestamp file age."""
+    import tempfile
+    import time
+    
+    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
+    monitor_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_monitor_active.txt')
+    
+    try:
+        # Check if monitor file exists and is recent (within last 15 seconds)
+        if os.path.exists(monitor_file):
+            with open(monitor_file, 'r') as f:
+                last_monitor_time = float(f.read().strip())
+            
+            if time.time() - last_monitor_time < 15:
+                return True
+    except:
+        pass
+    
+    return False
+
+def mark_monitoring_active():
+    """Mark that a monitoring thread is active."""
+    import tempfile
+    import time
+    
+    monitor_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_monitor_active.txt')
+    try:
+        with open(monitor_file, 'w') as f:
+            f.write(str(time.time()))
+    except:
+        pass
+
 def start_heartbeat_thread_once():
     """Start heartbeat thread - all threads monitor independently using shared timestamp."""
-    # Always start a thread, each monitors independently
-    heartbeat_thread = threading.Thread(target=check_for_inactivity_simple, daemon=True)
-    heartbeat_thread.start()
-    print("Started heartbeat monitoring thread")
-    return True
+    # Start heartbeat monitoring thread only if none is active
+    if not is_monitoring_thread_active():
+        mark_monitoring_active()
+        heartbeat_thread = threading.Thread(target=check_for_inactivity_simple, daemon=True)
+        heartbeat_thread.start()
+        print("Started heartbeat monitoring thread")
+    else:
+        print("Monitoring thread already active - skipping thread creation")
+        return True
 
 def check_for_inactivity_simple():
-    """Simple approach - all threads monitor independently using shared timestamp file."""
+    """Simple approach - monitor activity using shared timestamp file with efficient thread management."""
     import time
     import os
     
@@ -42,33 +79,27 @@ def check_for_inactivity_simple():
     INACTIVITY_TIMEOUT = 60  # 60 seconds
     thread_id = threading.current_thread().ident
     
-    # Shared timestamp file
-    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
-    
-    print(f"Heartbeat thread {thread_id} started")
-    
     while True:
         time.sleep(10)  # Check every 10 seconds
         
         try:
-            # Read last activity from shared file
-            last_activity_from_file = None
-            try:
+            # Mark this thread as active monitoring thread
+            mark_monitoring_active()
+            
+            # Read last activity time from shared file
+            timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
+            
+            if os.path.exists(timestamp_file):
                 with open(timestamp_file, 'r') as f:
                     last_activity_from_file = float(f.read().strip())
-            except (FileNotFoundError, ValueError):
-                # File doesn't exist or invalid, use current time
-                last_activity_from_file = time.time()
-                try:
-                    with open(timestamp_file, 'w') as f:
-                        f.write(str(last_activity_from_file))
-                except:
-                    pass
+            else:
+                last_activity_from_file = time.time()  # If no file, assume recent activity
             
-            print(f"Thread {thread_id} - last_activity_from_file: {last_activity_from_file}")
             time_since_activity = time.time() - last_activity_from_file
+            print(f"Thread {thread_id} - last_activity_from_file: {last_activity_from_file}")
             print(f"Thread {thread_id} - Time since activity: {time_since_activity:.1f} seconds")
             
+            # If no activity for INACTIVITY_TIMEOUT seconds, shutdown
             if time_since_activity > INACTIVITY_TIMEOUT:
                 print(f"🕐 Thread {thread_id} - No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
                 os._exit(0)
