@@ -86,6 +86,12 @@ def create_gui_executable():
         "run_gui.py"
     ]
     
+    # Add Info.plist for macOS to enable dock integration
+    if current_platform == 'darwin':
+        gui_command.extend(["--osx-bundle-identifier", "com.jiraextractor.gui"])
+        if os.path.exists("Info.plist"):
+            gui_command.extend(["--add-data", "Info.plist:."])
+    
     # For macOS, remove --onefile to create .app bundle instead of single executable
     if current_platform != 'darwin':
         gui_command.insert(3, "--onefile")
@@ -133,9 +139,8 @@ def create_distribution_package():
         for exe_file in package_dir.glob("JiraExtractor*"):
             os.chmod(exe_file, 0o755)
     
-    # Copy .env.example as JiraExtractor.env for user configuration
-    shutil.copy2(".env.example", package_dir / "JiraExtractor.env")
-    print("Copied JiraExtractor.env configuration file")
+    # No config files copied - users will create their own JiraExtractor.env through the app
+    print("No config files included - app will create JiraExtractor.env automatically")
     
     # Create README for users
     readme_content = f"""# Jira Data Extractor - GUI Application
@@ -151,16 +156,20 @@ def create_distribution_package():
 2. **First-time setup:**
    - The app will prompt you to enter your Jira credentials
    - Your settings will be saved to `JiraExtractor.env` for future use
+   - The app will automatically create this file when you save your configuration
 
 ## Configuration
 
-The app will create a `JiraExtractor.env` file with your Jira details:
+When you first run the app and save your configuration, it will create a `JiraExtractor.env` file with your Jira details:
 
 ```
 JIRA_API_URL="https://your-domain.atlassian.net"
 JIRA_API_TOKEN="your-api-token"
 JIRA_USER_EMAIL="your-email@example.com"
+STREAMLIT_PORT=8501
 ```
+
+**Note:** The app will create the configuration file automatically when you save your settings.
 
 To get your API token:
 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens

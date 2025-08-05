@@ -7,11 +7,13 @@ This script runs the Streamlit GUI and automatically opens the browser.
 
 import subprocess
 import sys
-import webbrowser
+import os
 import time
+import webbrowser
 import threading
 import socket
-import os
+import signal
+import atexit
 from dotenv import load_dotenv
 
 def get_config_file_path():
@@ -70,6 +72,36 @@ def open_browser_when_ready(expected_port, max_wait=20):
     print(f"🌍 Opening browser at {url} (last resort)")
     webbrowser.open(url)
     return False
+
+# Global variable to track Streamlit process
+streamlit_process = None
+
+def cleanup_streamlit():
+    """Clean up Streamlit process on app exit."""
+    global streamlit_process
+    if streamlit_process:
+        print("🧹 Cleaning up Streamlit process...")
+        try:
+            streamlit_process.terminate()
+            streamlit_process.wait(timeout=5)
+        except:
+            try:
+                streamlit_process.kill()
+            except:
+                pass
+        streamlit_process = None
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    print(f"\n🛑 Received signal {signum}, shutting down gracefully...")
+    cleanup_streamlit()
+    sys.exit(0)
+
+def setup_signal_handlers():
+    """Set up signal handlers for clean shutdown."""
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # Termination
+    atexit.register(cleanup_streamlit)  # Cleanup on normal exit
 
 def run_streamlit_safely(port):
     """Run Streamlit safely without subprocess recursion issues."""
@@ -134,6 +166,9 @@ def main():
     """Main entry point for the GUI launcher."""
     print("🚀 Starting Jira Data Extractor GUI...")
     print("📊 Streamlit interface will open in your default browser")
+    
+    # Set up signal handlers for clean shutdown
+    setup_signal_handlers()
     
     # Load environment variables from JiraExtractor.env
     config_file = get_config_file_path()

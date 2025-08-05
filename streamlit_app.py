@@ -14,6 +14,11 @@ import time
 from datetime import datetime, timedelta
 from io import StringIO
 import webbrowser
+import atexit
+
+# Global variables for heartbeat mechanism
+if 'last_activity' not in st.session_state:
+    st.session_state.last_activity = time.time()
 
 # Configure Streamlit page
 st.set_page_config(
@@ -22,6 +27,37 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Heartbeat mechanism - update activity timestamp
+st.session_state.last_activity = time.time()
+
+def check_for_inactivity():
+    """Background thread to check for browser inactivity and auto-shutdown."""
+    import time
+    import os
+    
+    # Wait 5 minutes of inactivity before auto-shutdown
+    INACTIVITY_TIMEOUT = 300  # 5 minutes
+    
+    while True:
+        time.sleep(30)  # Check every 30 seconds
+        
+        # Check if we have session state (app is running)
+        try:
+            if hasattr(st.session_state, 'last_activity'):
+                time_since_activity = time.time() - st.session_state.last_activity
+                if time_since_activity > INACTIVITY_TIMEOUT:
+                    print(f"🕐 No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
+                    os._exit(0)
+        except:
+            # If session state is not available, continue checking
+            pass
+
+# Start heartbeat monitoring thread (only once)
+if 'heartbeat_started' not in st.session_state:
+    st.session_state.heartbeat_started = True
+    heartbeat_thread = threading.Thread(target=check_for_inactivity, daemon=True)
+    heartbeat_thread.start()
 
 def get_config_file_path():
     """Get the path for the user's JiraExtractor.env file, handling bundled executables."""
@@ -236,6 +272,17 @@ def main():
                 st.info(f"📝 Found existing config: {os.path.basename(config_path)}")
             else:
                 st.warning("⚠️ Please configure your Jira settings")
+        
+        # Shutdown section
+        st.markdown("---")
+        st.markdown("### 🔴 App Control")
+        if st.button("🛑 Shutdown App", use_container_width=True, type="secondary"):
+            st.warning("🔄 Shutting down application...")
+            st.info("You can close this browser tab now.")
+            # Give the UI time to update before shutdown
+            time.sleep(1)
+            # Graceful shutdown
+            os._exit(0)
     
     # Main content area
     col1, col2 = st.columns([1, 1])
