@@ -75,8 +75,8 @@ def check_for_inactivity_simple():
     import time
     import os
     
-    # Wait 60 seconds of inactivity before auto-shutdown
-    INACTIVITY_TIMEOUT = 60  # 60 seconds
+    # Wait 5 minutes of inactivity before auto-shutdown
+    INACTIVITY_TIMEOUT = 300  # 5 minutes (300 seconds)
     thread_id = threading.current_thread().ident
     
     while True:
@@ -303,72 +303,57 @@ def main():
     # JavaScript heartbeat to keep server alive while browser is open
     import streamlit.components.v1 as components
     
-    # Initialize heartbeat counter in session state
-    if 'heartbeat_counter' not in st.session_state:
-        st.session_state.heartbeat_counter = 0
-        st.session_state.last_heartbeat_time = time.time()
+    # Background heartbeat mechanism - hidden button + JavaScript
+    def dummy_heartbeat():
+        """Dummy function called by JavaScript heartbeat to keep app alive."""
+        print(f"💓 Background heartbeat triggered at {time.time()}")
+        update_activity()
+        return True
     
-    # JavaScript heartbeat mechanism using session state
-    heartbeat_js = f"""
+    # JavaScript to click heartbeat button every 1 minute
+    heartbeat_js = """
     <script>
-    // Heartbeat mechanism to trigger activity every 30 seconds
-    function sendHeartbeat() {{
-        console.log('💓 Heartbeat triggered at', new Date().toLocaleTimeString());
+    function clickHeartbeatButton() {
+        console.log('💓 Searching for heartbeat button...');
         
-        // Find the increment button and click it to trigger Streamlit rerun
+        // Find the heartbeat button by looking for the heart emoji
         const buttons = parent.document.querySelectorAll('button');
         let heartbeatButton = null;
         
-        for (let button of buttons) {{
-            if (button.textContent.includes('💓')) {{
+        for (let button of buttons) {
+            if (button.textContent.includes('💓')) {
                 heartbeatButton = button;
                 break;
-            }}
-        }}
+            }
+        }
         
-        if (heartbeatButton) {{
+        if (heartbeatButton) {
             heartbeatButton.click();
-            console.log('💓 Heartbeat button clicked');
-        }} else {{
-            console.log('💓 Heartbeat button not found, trying alternative method');
-            // Alternative: trigger a focus event on the parent window
-            parent.window.dispatchEvent(new Event('focus'));
-        }}
-    }}
+            console.log('💓 Heartbeat button clicked successfully');
+        } else {
+            console.log('⚠️ Heartbeat button not found');
+        }
+    }
     
-    // Send heartbeat every 30 seconds
-    setInterval(sendHeartbeat, 30000);
+    // Click heartbeat button every 1 minute (60000 ms)
+    setInterval(clickHeartbeatButton, 60000);
     
-    // Send initial heartbeat after 5 seconds
-    setTimeout(sendHeartbeat, 5000);
+    // Click initial heartbeat after 5 seconds
+    setTimeout(clickHeartbeatButton, 5000);
     
-    console.log('💓 Heartbeat mechanism initialized - will trigger every 30 seconds');
+    console.log('💓 Background heartbeat initialized - will trigger every 60 seconds');
     </script>
     """
     
     # Inject the JavaScript
     components.html(heartbeat_js, height=0)
     
-    # Hidden heartbeat button that JavaScript can click
-    if st.button("💓", key="heartbeat_trigger", help="Heartbeat trigger (hidden)"):
-        st.session_state.heartbeat_counter += 1
-        st.session_state.last_heartbeat_time = time.time()
-        print(f"💓 JavaScript heartbeat #{st.session_state.heartbeat_counter} at {time.time()}")
-        update_activity()
-        st.rerun()
+    # Hidden heartbeat button that JavaScript will click every minute
+    if st.button("💓", key="bg_heartbeat", help="Background heartbeat (hidden)", type="primary"):
+        dummy_heartbeat()
+        st.success("💓 Heartbeat received - app will stay alive for 5 more minutes", icon="✅")
     
-    # Check if heartbeat is working (show status in sidebar)
-    current_time = time.time()
-    time_since_last_heartbeat = current_time - st.session_state.last_heartbeat_time
-    
-    # Auto-trigger heartbeat if JavaScript isn't working (fallback)
-    if time_since_last_heartbeat > 35:  # 35 seconds = 30s + 5s buffer
-        print(f"💓 Fallback heartbeat triggered (JS heartbeat not working for {time_since_last_heartbeat:.0f}s)")
-        st.session_state.heartbeat_counter += 1
-        st.session_state.last_heartbeat_time = current_time
-        update_activity()
-    
-    # Header
+    # Header (timer removed - using background heartbeat instead)
     st.title("📊 Jira Data Extractor")
     st.markdown("Extract Jira data including sprint issues, worklogs, and comments to Excel with rich visualizations.")
     
