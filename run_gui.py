@@ -38,18 +38,36 @@ def is_port_open(port):
     sock.close()
     return result == 0
 
-def open_browser_when_ready(url, port, max_wait=10):
-    """Open browser when the Streamlit server is ready."""
-    # Port is now passed as parameter
+def open_browser_when_ready(expected_port, max_wait=20):
+    """Open browser when the Streamlit server is ready, with robust port detection."""
+    print(f"🔍 Looking for Streamlit server...")
     
-    # Wait for server to be ready
-    for _ in range(max_wait * 2):  # Check every 0.5 seconds
-        if is_port_open(port):
-            time.sleep(1)  # Give it a moment to fully load
-            webbrowser.open(url)
-            print(f"🌐 Opened browser at {url}")
-            break
-        time.sleep(0.5)
+    # Give Streamlit time to start up
+    time.sleep(3)
+    
+    # Check common Streamlit ports in order of likelihood
+    ports_to_try = [3000, 8501, expected_port, 8502, 8503, 3001]
+    
+    for attempt in range(max_wait):
+        for port in ports_to_try:
+            if is_port_open(port):
+                url = f"http://localhost:{port}"
+                print(f"🌍 Found server on port {port}, opening browser...")
+                webbrowser.open(url)
+                return True
+        
+        # Wait a bit before trying again
+        time.sleep(1)
+    
+    # If we get here, try to open the most likely ports anyway
+    print(f"🔍 Server detection timed out, trying common ports...")
+    for port in [3000, 8501]:
+        url = f"http://localhost:{port}"
+        print(f"🌍 Opening browser at {url} (best guess)")
+        webbrowser.open(url)
+        time.sleep(2)  # Give user time to see if it works
+    
+    return False
 
 def main():
     """Run the Streamlit app with automatic browser opening."""
@@ -71,7 +89,7 @@ def main():
     # Start browser opening in a separate thread
     browser_thread = threading.Thread(
         target=open_browser_when_ready, 
-        args=(url, port)
+        args=(port,)
     )
     browser_thread.daemon = True
     browser_thread.start()
