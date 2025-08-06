@@ -391,15 +391,269 @@ Always test the bundle extensively and expect to need bundle-specific code paths
 
 ---
 
+## 🔄 Automatic Shutdown & Heartbeat Mechanism
+
+### Problem: Zombie Processes
+**Challenge:** Streamlit apps continue running indefinitely after browser closes, creating zombie processes that consume system resources.
+
+### Solution: Background Heartbeat with Auto-Shutdown
+
+#### 1. **Hidden Button + JavaScript Approach**
+```python
+# In sidebar or main area
+def dummy_heartbeat():
+    """Dummy function called by JavaScript heartbeat to keep app alive."""
+    print(f"💓 Background heartbeat triggered at {time.time()}")
+    update_activity()
+    return True
+
+# Hidden heartbeat button that JavaScript will click
+if st.button("💓", key="bg_heartbeat", help="Background heartbeat (hidden)", type="primary"):
+    dummy_heartbeat()
+```
+
+#### 2. **JavaScript Auto-Clicker**
+```javascript
+heartbeat_js = """
+<script>
+function clickHeartbeatButton() {
+    console.log('💓 Searching for heartbeat button...');
+    
+    // Find the heartbeat button by looking for the heart emoji
+    const buttons = parent.document.querySelectorAll('button');
+    let heartbeatButton = null;
+    
+    for (let button of buttons) {
+        if (button.textContent.includes('💓')) {
+            heartbeatButton = button;
+            break;
+        }
+    }
+    
+    if (heartbeatButton) {
+        heartbeatButton.style.display = 'none';  // Hide the button
+        heartbeatButton.click();
+        console.log('💓 Heartbeat button clicked successfully');
+    } else {
+        console.log('⚠️ Heartbeat button not found');
+    }
+}
+
+// Click heartbeat button every 1 minute (60000 ms)
+setInterval(clickHeartbeatButton, 60000);
+
+// Click initial heartbeat after 1 second
+setTimeout(clickHeartbeatButton, 1000);
+
+console.log('💓 Background heartbeat initialized - will trigger every 60 seconds');
+</script>
+"""
+
+# Inject the JavaScript
+components.html(heartbeat_js, height=0)
+```
+
+#### 3. **Shared Timestamp File for Thread Coordination**
+```python
+def update_activity():
+    """Update activity timestamp in shared file so all threads can see it."""
+    import tempfile
+    import os
+    
+    current_time = time.time()
+    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
+    
+    try:
+        with open(timestamp_file, 'w') as f:
+            f.write(str(current_time))
+        print(f"Activity updated: {current_time}")
+    except Exception as e:
+        print(f"Error updating activity: {e}")
+        pass
+```
+
+#### 4. **Background Monitoring Thread**
+```python
+def check_for_inactivity_simple():
+    """Monitor activity using shared timestamp file with efficient thread management."""
+    import time
+    import os
+    
+    # Wait 5 minutes of inactivity before auto-shutdown
+    INACTIVITY_TIMEOUT = 300  # 5 minutes (300 seconds)
+    thread_id = threading.current_thread().ident
+    
+    while True:
+        time.sleep(10)  # Check every 10 seconds
+        
+        try:
+            # Mark this thread as active monitoring thread
+            mark_monitoring_active()
+            
+            # Read last activity time from shared file
+            timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
+            
+            if os.path.exists(timestamp_file):
+                with open(timestamp_file, 'r') as f:
+                    last_activity_from_file = float(f.read().strip())
+            else:
+                last_activity_from_file = time.time()  # If no file, assume recent activity
+            
+            time_since_activity = time.time() - last_activity_from_file
+            
+            # If no activity for INACTIVITY_TIMEOUT seconds, shutdown
+            if time_since_activity > INACTIVITY_TIMEOUT:
+                print(f"🕐 Thread {thread_id} - No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
+                os._exit(0)
+                
+        except Exception as e:
+            print(f"Thread {thread_id} error: {e}")
+            pass
+```
+
+#### 5. **Efficient Thread Management**
+```python
+def is_monitoring_thread_active():
+    """Check if a monitoring thread is already active by checking the timestamp file age."""
+    import tempfile
+    import time
+    
+    monitor_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_monitor_active.txt')
+    
+    try:
+        # Check if monitor file exists and is recent (within last 15 seconds)
+        if os.path.exists(monitor_file):
+            with open(monitor_file, 'r') as f:
+                last_monitor_time = float(f.read().strip())
+            
+            if time.time() - last_monitor_time < 15:
+                return True
+    except:
+        pass
+    
+    return False
+
+# Start heartbeat monitoring thread only if none is active
+if not is_monitoring_thread_active():
+    mark_monitoring_active()
+    heartbeat_thread = threading.Thread(target=check_for_inactivity_simple, daemon=True)
+    heartbeat_thread.start()
+    print("Started heartbeat monitoring thread")
+else:
+    print("Monitoring thread already active - skipping thread creation")
+```
+
+### Key Insights:
+
+1. **✅ JavaScript Heartbeat Works**: Hidden button + JS auto-clicker reliably keeps app alive
+2. **✅ Shared Timestamp Files**: Enable thread coordination across Streamlit reruns
+3. **✅ Thread Optimization**: Prevent multiple monitoring threads with file-based coordination
+4. **✅ 5-Minute Timeout**: Reasonable balance between usability and resource management
+5. **✅ Invisible Operation**: Users don't see heartbeat mechanism, clean UI experience
+
+### Behavior:
+- **Browser Open**: JavaScript clicks heartbeat button every 60 seconds → app stays alive indefinitely
+- **Browser Closed**: No JavaScript activity → app shuts down after 5 minutes of inactivity
+- **Page Reloads**: New threads created but coordinate via shared files, no conflicts
+- **User Interactions**: Don't interfere with shutdown mechanism, heartbeat runs independently
+
+---
+
+## 📁 Configuration File Management
+
+### Problem: Config File Location and Naming
+**Challenge:** Multiple apps in same folder, hidden `.env` files, user confusion about config location.
+
+### Solution: Unique Named Config Files
+
+#### 1. **Use App-Specific Config Names**
+```python
+def get_config_file_path():
+    """Get the path for the user's JiraExtractor.env file, handling bundled executables."""
+    # For bundled executables, save config in the same directory as the executable
+    if getattr(sys, 'frozen', False):
+        # Running as bundled executable
+        bundle_dir = os.path.dirname(sys.executable)
+        return os.path.join(bundle_dir, 'JiraExtractor.env')  # NOT .env
+    else:
+        # Running from source
+        return os.path.join(os.getcwd(), 'JiraExtractor.env')
+```
+
+#### 2. **Config File Location by Mode**
+
+**Source Mode:**
+- Config file: `./JiraExtractor.env` (in project directory)
+- Template: `./JiraExtractor.env.example` (if provided)
+
+**Bundled Mode (.app):**
+- Config file: `JiraExtractor.env` (same directory as .app bundle)
+- Template: Not included in bundle (app creates config automatically)
+
+#### 3. **Auto-Creation with Sensible Defaults**
+```python
+def save_config(url, email, token):
+    """Save configuration to user's JiraExtractor.env file."""
+    config_path = get_config_file_path()
+    
+    try:
+        # Ensure the directory exists (only if there's a directory path)
+        config_dir = os.path.dirname(config_path)
+        if config_dir:  # Only create directory if path has a directory component
+            os.makedirs(config_dir, exist_ok=True)
+        
+        with open(config_path, 'w') as f:
+            f.write(f'JIRA_API_URL="{url}"\n')
+            f.write(f'JIRA_USER_EMAIL="{email}"\n')
+            f.write(f'JIRA_API_TOKEN="{token}"\n')
+            
+            # Add optional port setting if it exists in environment
+            if 'STREAMLIT_PORT' in os.environ:
+                f.write(f'STREAMLIT_PORT={os.environ["STREAMLIT_PORT"]}\n')
+        
+        return True
+    except Exception as e:
+        st.error(f"Failed to save configuration: {str(e)}")
+        st.error(f"Attempted to save to: {config_path}")
+        return False
+```
+
+### Key Insights:
+
+1. **✅ Unique Names**: `JiraExtractor.env` instead of `.env` prevents conflicts
+2. **✅ Visible Files**: Not hidden, easier for users to find and edit
+3. **✅ Location Awareness**: Different paths for source vs bundled modes
+4. **✅ Auto-Creation**: App creates config file automatically on first run
+5. **✅ No Templates in Bundle**: Reduces bundle size, app handles defaults
+
+### Config File Locations:
+```
+# Source Mode
+project/
+├── streamlit_app.py
+├── run_gui.py
+└── JiraExtractor.env          # ← Config file here
+
+# Bundled Mode
+user_folder/
+├── JiraExtractor.app          # ← App bundle
+└── JiraExtractor.env          # ← Config file here (same level)
+```
+
+---
+
 ## 📚 Additional Resources
 
 - [PyInstaller Documentation](https://pyinstaller.readthedocs.io/)
 - [Streamlit Configuration Reference](https://docs.streamlit.io/library/advanced-features/configuration)
 - [macOS App Bundle Guidelines](https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/BundleTypes/BundleTypes.html)
+- [JavaScript setInterval Documentation](https://developer.mozilla.org/en-US/docs/Web/API/setInterval)
+- [Python Threading Documentation](https://docs.python.org/3/library/threading.html)
 
 ---
 
 **Created:** 2025-08-05  
+**Updated:** 2025-08-06  
 **Project:** Jira API Extractor  
-**Status:** ✅ Production Ready  
+**Status:** ✅ Production Ready with Auto-Shutdown  
 **Next:** Consider Windows packaging with similar principles
