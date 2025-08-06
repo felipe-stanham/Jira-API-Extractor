@@ -303,56 +303,6 @@ def main():
     # JavaScript heartbeat to keep server alive while browser is open
     import streamlit.components.v1 as components
     
-    # Background heartbeat mechanism - hidden button + JavaScript
-    def dummy_heartbeat():
-        """Dummy function called by JavaScript heartbeat to keep app alive."""
-        print(f"💓 Background heartbeat triggered at {time.time()}")
-        update_activity()
-        return True
-    
-    # JavaScript to click heartbeat button every 1 minute
-    heartbeat_js = """
-    <script>
-    function clickHeartbeatButton() {
-        console.log('💓 Searching for heartbeat button...');
-        
-        // Find the heartbeat button by looking for the heart emoji
-        const buttons = parent.document.querySelectorAll('button');
-        let heartbeatButton = null;
-        
-        for (let button of buttons) {
-            if (button.textContent.includes('💓')) {
-                heartbeatButton = button;
-                break;
-            }
-        }
-        
-        if (heartbeatButton) {
-            heartbeatButton.click();
-            console.log('💓 Heartbeat button clicked successfully');
-        } else {
-            console.log('⚠️ Heartbeat button not found');
-        }
-    }
-    
-    // Click heartbeat button every 1 minute (60000 ms)
-    setInterval(clickHeartbeatButton, 60000);
-    
-    // Click initial heartbeat after 5 seconds
-    setTimeout(clickHeartbeatButton, 5000);
-    
-    console.log('💓 Background heartbeat initialized - will trigger every 60 seconds');
-    </script>
-    """
-    
-    # Inject the JavaScript
-    components.html(heartbeat_js, height=0)
-    
-    # Hidden heartbeat button that JavaScript will click every minute
-    if st.button("💓", key="bg_heartbeat", help="Background heartbeat (hidden)", type="primary"):
-        dummy_heartbeat()
-        st.success("💓 Heartbeat received - app will stay alive for 5 more minutes", icon="✅")
-    
     # Header (timer removed - using background heartbeat instead)
     st.title("📊 Jira Data Extractor")
     st.markdown("Extract Jira data including sprint issues, worklogs, and comments to Excel with rich visualizations.")
@@ -425,6 +375,57 @@ def main():
             time.sleep(1)
             # Graceful shutdown
             os._exit(0)
+
+        # Background heartbeat mechanism - hidden button + JavaScript
+        def dummy_heartbeat():
+            """Dummy function called by JavaScript heartbeat to keep app alive."""
+            print(f"💓 Background heartbeat triggered at {time.time()}")
+            update_activity()
+            return True
+
+        # Hidden heartbeat button that JavaScript will click every minute
+        if st.button("💓", key="bg_heartbeat", help="Background heartbeat (hidden)", type="primary"):
+            dummy_heartbeat()
+        
+        # JavaScript to click heartbeat button every 1 minute
+        heartbeat_js = """
+        <script>
+
+        function clickHeartbeatButton() {
+            console.log('💓 Searching for heartbeat button...');
+            
+            // Find the heartbeat button by looking for the heart emoji
+            const buttons = parent.document.querySelectorAll('button');
+            let heartbeatButton = null;
+            
+            for (let button of buttons) {
+                if (button.textContent.includes('💓')) {
+                    heartbeatButton = button;
+                    break;
+                }
+            }
+            
+            if (heartbeatButton) {
+                heartbeatButton.style.display = 'none';
+                heartbeatButton.click();
+                console.log('💓 Heartbeat button clicked successfully');
+            } else {
+                console.log('⚠️ Heartbeat button not found');
+            }
+        }
+        
+        // Click heartbeat button every 1 minute (60000 ms)
+        setInterval(clickHeartbeatButton, 60000);
+        
+        // Click initial heartbeat after 1 seconds
+        setTimeout(clickHeartbeatButton, 1000);
+        
+        console.log('💓 Background heartbeat initialized - will trigger every 60 seconds');
+        </script>
+        """
+        
+        # Inject the JavaScript
+        components.html(heartbeat_js, height=0)
     
     # Main content area
     col1, col2 = st.columns([1, 1])
