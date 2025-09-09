@@ -313,7 +313,7 @@ class JiraAPIClient:
     
     def _get_worklogs_fallback(self, project_key, start_date, end_date):
         """Fallback method using the original approach with pagination and comprehensive sprint fetching."""
-        search_url = f"{self.base_url}/rest/api/3/search"
+        search_url = f"{self.base_url}/rest/api/3/search/jql"
         jql = f'project = "{project_key}" AND worklogDate >= "{start_date}" AND worklogDate <= "{end_date}"'
         params = {
             'jql': jql,
@@ -400,7 +400,7 @@ class JiraAPIClient:
     
     def get_comments_in_date_range(self, project_key, start_date, end_date):
         """Fetches all comments created within a date range for a project with pagination."""
-        search_url = f"{self.base_url}/rest/api/3/search"
+        search_url = f"{self.base_url}/rest/api/3/search/jql"
         # Fix JQL syntax for comment date filtering
         jql = f'project = "{project_key}" AND updated >= "{start_date}" AND updated <= "{end_date}"'
         params = {
