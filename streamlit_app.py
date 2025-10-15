@@ -9,104 +9,9 @@ import streamlit as st
 import os
 import sys
 import subprocess
-import threading
 import time
 from datetime import datetime, timedelta
 from io import StringIO
-import webbrowser
-import atexit
-
-# Global variables for heartbeat mechanism (thread-safe)
-import threading
-last_activity_lock = threading.Lock()
-last_activity_time = time.time()
-
-# Efficient thread management - check if monitoring thread already exists
-import tempfile
-import os
-
-def is_monitoring_thread_active():
-    """Check if a monitoring thread is already active by checking the timestamp file age."""
-    import tempfile
-    import time
-    
-    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
-    monitor_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_monitor_active.txt')
-    
-    try:
-        # Check if monitor file exists and is recent (within last 15 seconds)
-        if os.path.exists(monitor_file):
-            with open(monitor_file, 'r') as f:
-                last_monitor_time = float(f.read().strip())
-            
-            if time.time() - last_monitor_time < 15:
-                return True
-    except:
-        pass
-    
-    return False
-
-def mark_monitoring_active():
-    """Mark that a monitoring thread is active."""
-    import tempfile
-    import time
-    
-    monitor_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_monitor_active.txt')
-    try:
-        with open(monitor_file, 'w') as f:
-            f.write(str(time.time()))
-    except:
-        pass
-
-def start_heartbeat_thread_once():
-    """Start heartbeat thread - all threads monitor independently using shared timestamp."""
-    # Start heartbeat monitoring thread only if none is active
-    if not is_monitoring_thread_active():
-        mark_monitoring_active()
-        heartbeat_thread = threading.Thread(target=check_for_inactivity_simple, daemon=True)
-        heartbeat_thread.start()
-        print("Started heartbeat monitoring thread")
-    else:
-        print("Monitoring thread already active - skipping thread creation")
-        return True
-
-def check_for_inactivity_simple():
-    """Simple approach - monitor activity using shared timestamp file with efficient thread management."""
-    import time
-    import os
-    
-    # Wait 5 minutes of inactivity before auto-shutdown
-    INACTIVITY_TIMEOUT = 300  # 5 minutes (300 seconds)
-    thread_id = threading.current_thread().ident
-    
-    while True:
-        time.sleep(10)  # Check every 10 seconds
-        
-        try:
-            # Mark this thread as active monitoring thread
-            mark_monitoring_active()
-            
-            # Read last activity time from shared file
-            timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
-            
-            if os.path.exists(timestamp_file):
-                with open(timestamp_file, 'r') as f:
-                    last_activity_from_file = float(f.read().strip())
-            else:
-                last_activity_from_file = time.time()  # If no file, assume recent activity
-            
-            time_since_activity = time.time() - last_activity_from_file
-            print(f"Thread {thread_id} - last_activity_from_file: {last_activity_from_file}")
-            print(f"Thread {thread_id} - Time since activity: {time_since_activity:.1f} seconds")
-            
-            # If no activity for INACTIVITY_TIMEOUT seconds, shutdown
-            if time_since_activity > INACTIVITY_TIMEOUT:
-                print(f"🕐 Thread {thread_id} - No browser activity for {time_since_activity:.0f} seconds. Auto-shutting down...")
-                os._exit(0)
-                
-        except Exception as e:
-            print(f"Thread {thread_id} error: {e}")
-            pass
 
 # Configure Streamlit page
 st.set_page_config(
@@ -116,54 +21,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Heartbeat mechanism - update activity timestamp (shared file)
-def update_activity():
-    """Update activity timestamp in shared file so all threads can see it."""
-    import tempfile
-    import os
-    
-    current_time = time.time()
-    timestamp_file = os.path.join(tempfile.gettempdir(), 'jira_extractor_last_activity.txt')
-    
-    try:
-        with open(timestamp_file, 'w') as f:
-            f.write(str(current_time))
-        print(f"Activity updated: {current_time}")
-    except Exception as e:
-        print(f"Error updating activity: {e}")
-        pass
-    
-    # Also update global variable for backward compatibility
-    global last_activity_time
-    with last_activity_lock:
-        last_activity_time = current_time
-
-update_activity()
-
-# Original check_for_inactivity function removed - now using check_for_inactivity_coordinated
-
-# Start heartbeat monitoring thread (only once per process using file lock)
-start_heartbeat_thread_once()
-
-# Always update activity on every page load/refresh
-update_activity()
-
 def get_config_file_path():
-    """Get the path for the user's JiraExtractor.env file, handling bundled executables."""
-    # For bundled executables, save config in the same directory as the executable
-    if getattr(sys, 'frozen', False):
-        # Running as bundled executable
-        if sys.platform == 'darwin' and '.app' in sys.executable:
-            # macOS .app bundle - save config next to the .app
-            app_dir = os.path.dirname(os.path.dirname(os.path.dirname(sys.executable)))
-            return os.path.join(app_dir, 'JiraExtractor.env')
-        else:
-            # Other bundled executables - save next to executable
-            exe_dir = os.path.dirname(sys.executable)
-            return os.path.join(exe_dir, 'JiraExtractor.env')
-    else:
-        # Running from source - use current directory
-        return 'JiraExtractor.env'
+    """Get the path for the user's JiraExtractor.env file."""
+    return 'JiraExtractor.env'
 
 def load_bundled_template():
     """Load the bundled .env.example template."""
@@ -300,10 +160,7 @@ def run_extraction(project, sprint_ids, start_date, end_date, progress_placehold
 def main():
     """Main Streamlit application."""
     
-    # JavaScript heartbeat to keep server alive while browser is open
-    import streamlit.components.v1 as components
-    
-    # Header (timer removed - using background heartbeat instead)
+    # Header
     st.title("📊 Jira Data Extractor")
     st.markdown("Extract Jira data including sprint issues, worklogs, and comments to Excel with rich visualizations.")
     
@@ -368,64 +225,13 @@ def main():
         # Shutdown section
         st.markdown("---")
         st.markdown("### 🔴 App Control")
-        if st.button("🛑 Shutdown App", use_container_width=True, type="secondary"):
-            st.warning("🔄 Shutting down application...")
+        if st.button("🛑 Stop Server", use_container_width=True, type="secondary"):
+            st.warning("🔄 Shutting down server...")
             st.info("You can close this browser tab now.")
             # Give the UI time to update before shutdown
             time.sleep(1)
             # Graceful shutdown
             os._exit(0)
-
-        # Background heartbeat mechanism - hidden button + JavaScript
-        def dummy_heartbeat():
-            """Dummy function called by JavaScript heartbeat to keep app alive."""
-            print(f"💓 Background heartbeat triggered at {time.time()}")
-            update_activity()
-            return True
-
-        # Hidden heartbeat button that JavaScript will click every minute
-        if st.button("💓", key="bg_heartbeat", help="Background heartbeat (hidden)", type="primary"):
-            dummy_heartbeat()
-        
-        # JavaScript to click heartbeat button every 1 minute
-        heartbeat_js = """
-        <script>
-
-        function clickHeartbeatButton() {
-            console.log('💓 Searching for heartbeat button...');
-            
-            // Find the heartbeat button by looking for the heart emoji
-            const buttons = parent.document.querySelectorAll('button');
-            let heartbeatButton = null;
-            
-            for (let button of buttons) {
-                if (button.textContent.includes('💓')) {
-                    heartbeatButton = button;
-                    break;
-                }
-            }
-            
-            if (heartbeatButton) {
-                heartbeatButton.style.display = 'none';
-                heartbeatButton.click();
-                console.log('💓 Heartbeat button clicked successfully');
-            } else {
-                console.log('⚠️ Heartbeat button not found');
-            }
-        }
-        
-        // Click heartbeat button every 1 minute (60000 ms)
-        setInterval(clickHeartbeatButton, 60000);
-        
-        // Click initial heartbeat after 1 seconds
-        setTimeout(clickHeartbeatButton, 1000);
-        
-        console.log('💓 Background heartbeat initialized - will trigger every 60 seconds');
-        </script>
-        """
-        
-        # Inject the JavaScript
-        components.html(heartbeat_js, height=0)
     
     # Main content area
     col1, col2 = st.columns([1, 1])

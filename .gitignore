@@ -12,16 +12,9 @@ __pycache__/
 # macOS system files
 .DS_Store
 
-# Build and distribution files
+# Build and distribution files (if needed in future)
 build/
 dist/
-*.spec
-
-# PyInstaller files
-*.exe
-*.app
-*.dmg
-*.pkg
 
 # Temporary files
 ~$*

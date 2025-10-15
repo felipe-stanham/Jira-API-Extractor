@@ -5,7 +5,6 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 ## Features
 
 - **🖥️ Modern Web Interface**: Beautiful Streamlit-based GUI that runs in your browser
-- **📦 Standalone Application**: No Python installation required - just double-click to run
 - **⚙️ In-App Configuration**: Configure Jira credentials directly in the application
 - **📊 Rich Data Extraction**: 
   - Extract all issues from specific sprints
@@ -24,30 +23,12 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 - **🔄 Real-time Progress**: Live progress updates during data extraction
 - **💾 Persistent Settings**: Configuration saved automatically for future use
 
-## 🚀 Quick Start (For End Users)
-
-### Download & Run
-1. **Download** the latest release: `JiraExtractor_macos_standalone.zip`
-2. **Extract** the zip file
-3. **Double-click** `JiraExtractorGUI_macos.app` to launch
-4. **Configure** your Jira credentials in the sidebar (first time only)
-5. **Extract** your data using the web interface!
-
-### First-Time Setup
-1. The app will open in your default web browser
-2. In the sidebar, enter your Jira details:
-   - **Jira URL**: `https://your-company.atlassian.net`
-   - **Email**: Your Jira login email
-   - **API Token**: [Get your token here](https://id.atlassian.com/manage-profile/security/api-tokens)
-3. Click **"💾 Save Configuration"**
-4. Your settings are saved to `JiraExtractor.env` for future use
-
-## 🛠️ For Developers
+## 🚀 Quick Start
 
 ### Project Structure
 ```
-├── main.py                    # CLI entry point (for developers)
-├── run_gui.py                 # GUI launcher
+├── main.py                    # CLI entry point
+├── run_gui.py                 # GUI launcher script
 ├── streamlit_app.py           # Streamlit web interface
 ├── config.py                  # Configuration management (uses JiraExtractor.env)
 ├── jira_api.py                # Jira API client with pagination
@@ -55,17 +36,16 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 ├── charts_helper_enhanced.py  # Chart creation functions
 ├── chart_colors.py            # Chart color schemes
 ├── utils.py                   # Utility functions
-├── build_executables.py       # Build script for standalone app
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Template for JiraExtractor.env
 └── README.md                  # This file
 ```
 
-### Development Setup
+### Setup
 1. **Clone** the repository
 2. **Install** dependencies: `pip install -r requirements.txt`
 3. **Create** `JiraExtractor.env` based on `.env.example`
-4. **Run** the GUI: `python3 run_gui.py`
+4. **Run** the GUI: `python3 run_gui.py` (or `streamlit run streamlit_app.py`)
 5. **Or run** CLI: `python3 main.py --project YOUR_PROJECT --sprint SPRINT_ID`
 
 ## 📱 Using the GUI Application
@@ -110,28 +90,6 @@ python3 main.py --project NG --sprint 528
 python3 main.py --project NG --start_date 2025-07-14 --end_date 2025-07-18
 ```
 
-## 🏗️ Building Standalone Application
-
-### For Developers: Creating Distribution
-```bash
-# Build the standalone .app bundle for macOS
-python3 build_executables.py
-
-# Output will be in dist/
-# - JiraExtractorGUI_macos.app (the main app)
-# - JiraExtractor_macos_standalone.zip (distribution package)
-```
-
-### Build Requirements
-- Python 3.9+
-- PyInstaller
-- All project dependencies
-
-### Distribution Package Contents
-- `JiraExtractorGUI_macos.app` - The main application
-- `JiraExtractor.env` - Configuration template
-- `README.txt` - User instructions
-
 ## 🎯 Key Features
 
 ### 1. **Modern GUI Interface**
@@ -156,7 +114,6 @@ python3 build_executables.py
 - No hidden files (uses `JiraExtractor.env`)
 - In-app credential management
 - Persistent settings across sessions
-- Multiple apps can coexist in same folder
 
 ## 📊 Output
 
@@ -207,16 +164,12 @@ STREAMLIT_PORT=8501
 ## 🚨 Troubleshooting
 
 ### Common Issues
-- **App won't launch**: Make sure you're double-clicking the `.app` file, not the executable inside
-- **Configuration won't save**: Check that you have write permissions in the app directory
+- **Configuration won't save**: Check that you have write permissions in the directory
 - **No data extracted**: Verify your Jira credentials and project access
 - **Charts not showing**: Ensure you have data in the corresponding sheets
-
-### For Developers
 - **SSL Warnings**: Suppress with `PYTHONWARNINGS="ignore:NotOpenSSLWarning"`
 - **Port conflicts**: Change `STREAMLIT_PORT` in `JiraExtractor.env`
-- **Build issues**: Ensure all dependencies are installed
 
 ---
 
-**Jira API Extractor v2.0** - Built with ❤️ using Python, Streamlit, and PyInstaller
+**Jira API Extractor v2.0** - Built with ❤️ using Python and Streamlit
