@@ -9,6 +9,8 @@ The Jira API Extractor does not use a traditional database. Instead, it exports 
 ```mermaid
 erDiagram
     WORKBOOK ||--|{ SPRINT_SHEET : contains
+    WORKBOOK ||--o| EPICS_WITH_LABEL_SHEET : contains
+    WORKBOOK ||--|| OPEN_EPICS_SHEET : contains
     WORKBOOK ||--|| WORK_LOGS_SHEET : contains
     WORKBOOK ||--|| COMMENTS_SHEET : contains
     WORKBOOK ||--|| CHARTS_SHEET : contains
@@ -20,6 +22,35 @@ erDiagram
         string Status
         string Sprint
         string ParentSummary
+        float StoryPoints
+        string ParentKey
+        string StatusCategory
+    }
+    
+    EPICS_WITH_LABEL_SHEET {
+        string IssueKey PK
+        string IssueType
+        string Summary
+        string Status
+        string Sprint
+        string ParentSummary
+        float StoryPoints
+        string ParentKey
+        string StatusCategory
+        string EpicStatus
+    }
+    
+    OPEN_EPICS_SHEET {
+        string IssueKey PK
+        string IssueType
+        string Summary
+        string Status
+        string Sprint
+        string ParentSummary
+        float StoryPoints
+        string ParentKey
+        string StatusCategory
+        string EpicStatus
     }
     
     WORK_LOGS_SHEET {
@@ -70,19 +101,28 @@ erDiagram
 | Status | String | Current issue status | To Do, In Progress, DONE, Ready for Prod |
 | Sprint | String | Sprint name | Cycle 2, Ref.Cycle 1 |
 | Parent Summary | String | Parent issue summary (if exists) | Epic: User Management |
+| **Story Points** | Float | **Story point estimate** | **5.0, 8.0, N/A** |
+| **Parent Key** | String | **Parent issue key** | **NG-100, N/A** |
+| **Status Category** | String | **High-level status category** | **To Do, In Progress, Done** |
 
 **Indexes**:
 - Primary Key: Issue Key (unique)
 - Foreign Key: Sprint (references sprint metadata)
+- Foreign Key: Parent Key (references parent issue)
 
 **Sample Data**:
 ```
-Issue Key | Issue Type | Summary                    | Status      | Sprint      | Parent Summary
-----------|------------|----------------------------|-------------|-------------|---------------
-NG-951    | Refinement | API endpoint design        | DONE        | Next in line| Epic: API Layer
-NG-961    | Story      | User login functionality   | In Progress | Cycle 2     | Epic: Auth
-NG-956    | Bug        | Fix validation error       | DONE        | Ref.Cycle 1 | N/A
+Issue Key | Issue Type | Summary                    | Status      | Sprint      | Parent Summary    | Story Points | Parent Key | Status Category
+----------|------------|----------------------------|-------------|-------------|-------------------|--------------|------------|----------------
+NG-951    | Refinement | API endpoint design        | DONE        | Next in line| Epic: API Layer   | 3.0          | NG-100     | Done
+NG-961    | Story      | User login functionality   | In Progress | Cycle 2     | Epic: Auth        | 8.0          | NG-200     | In Progress
+NG-956    | Bug        | Fix validation error       | DONE        | Ref.Cycle 1 | N/A               | N/A          | N/A        | Done
 ```
+
+**New Fields (P-001)**:
+- **Story Points**: Configurable custom field (default: `customfield_10016`), displays "N/A" if not set
+- **Parent Key**: Direct reference to parent issue, useful for epic tracking
+- **Status Category**: Jira's built-in categorization (To Do, In Progress, Done)
 
 ### Work Logs Sheet
 
@@ -161,6 +201,102 @@ NG-961    | Story      | User login   | In Progress | John Doe  | 2025-07-15 10:
 NG-961    | Story      | User login   | In Progress | Jane Smith| 2025-07-16 09:15:00 | 2025-07-16 11:20:00 | Looks good, approved
 NG-956    | Bug        | Fix validation| DONE       | John Doe  | 2025-07-14 16:45:00 | 2025-07-14 16:45:00 | Fixed and tested
 ```
+
+### Epics with Label Sheet (NEW - P-001)
+
+**Sheet Name**: `Epics with Label`
+
+**Purpose**: Contains all issues from epics that match a specific label filter (conditional - only created when `--epic_label` parameter provided)
+
+**Columns**:
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Issue Key | String | Unique Jira issue identifier | NG-951 |
+| Issue Type | String | Type of issue | Story, Bug, Refinement |
+| Summary | String | Issue title/summary | Implement user authentication |
+| Status | String | Current issue status | To Do, In Progress, DONE |
+| Sprint | String | Sprint name (if assigned) | Cycle 2, N/A |
+| Parent Summary | String | Parent epic summary | Epic: Q1 Features |
+| Story Points | Float | Story point estimate | 5.0, N/A |
+| Parent Key | String | Parent epic key | NG-100 |
+| Status Category | String | High-level status category | To Do, In Progress, Done |
+| **Epic Status** | String | **Status of the parent epic** | **In Progress, DONE** |
+
+**Indexes**:
+- Primary Key: Issue Key (unique)
+- Foreign Key: Parent Key (references epic)
+- Index: Epic Status (for filtering)
+
+**Sample Data**:
+```
+Issue Key | Issue Type | Summary              | Status      | Sprint  | Parent Summary    | Story Points | Parent Key | Status Category | Epic Status
+----------|------------|----------------------|-------------|---------|-------------------|--------------|------------|-----------------|-------------
+NG-951    | Story      | User authentication  | In Progress | Cycle 2 | Epic: Q1 Features | 8.0          | NG-100     | In Progress     | In Progress
+NG-952    | Story      | Password reset       | To Do       | N/A     | Epic: Q1 Features | 5.0          | NG-100     | To Do           | In Progress
+NG-953    | Bug        | Fix login timeout    | DONE        | Cycle 1 | Epic: Q1 Features | 3.0          | NG-100     | Done            | In Progress
+```
+
+**Usage**:
+```bash
+# Filter epics by label
+python3 main.py --project NG --epic_label "Q1-2025"
+```
+
+**Notes**:
+- Sheet only created when `--epic_label` parameter is provided
+- Ignores date range filters - exports all issues from matching epics
+- Epic status shows the current status of the parent epic
+- Useful for tracking all work related to specific initiatives or quarters
+
+### Open Epics Sheet (NEW - P-001)
+
+**Sheet Name**: `Open Epics`
+
+**Purpose**: Contains all issues from epics that are not in "Done" status category (always created)
+
+**Columns**:
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Issue Key | String | Unique Jira issue identifier | NG-961 |
+| Issue Type | String | Type of issue | Story, Bug, Refinement |
+| Summary | String | Issue title/summary | Implement dashboard |
+| Status | String | Current issue status | In Progress, To Do |
+| Sprint | String | Sprint name (if assigned) | Cycle 2, N/A |
+| Parent Summary | String | Parent epic summary | Epic: Dashboard |
+| Story Points | Float | Story point estimate | 8.0, N/A |
+| Parent Key | String | Parent epic key | NG-200 |
+| Status Category | String | High-level status category | To Do, In Progress |
+| **Epic Status** | String | **Status of the parent epic** | **In Progress, To Do** |
+
+**Indexes**:
+- Primary Key: Issue Key (unique)
+- Foreign Key: Parent Key (references epic)
+- Index: Epic Status (for filtering)
+- Index: Status Category (for filtering)
+
+**Sample Data**:
+```
+Issue Key | Issue Type | Summary              | Status      | Sprint  | Parent Summary  | Story Points | Parent Key | Status Category | Epic Status
+----------|------------|----------------------|-------------|---------|-----------------|--------------|------------|-----------------|-------------
+NG-961    | Story      | Dashboard widgets    | In Progress | Cycle 2 | Epic: Dashboard | 8.0          | NG-200     | In Progress     | In Progress
+NG-962    | Story      | Chart components     | To Do       | N/A     | Epic: Dashboard | 5.0          | NG-200     | To Do           | In Progress
+NG-963    | Bug        | Fix data loading     | In Progress | Cycle 2 | Epic: Dashboard | 3.0          | NG-200     | In Progress     | In Progress
+```
+
+**Usage**:
+```bash
+# Always included in export
+python3 main.py --project NG --sprint 528
+```
+
+**Notes**:
+- Always created (not conditional)
+- Uses JQL: `type=Epic AND statusCategory!=Done` to find open epics
+- Provides visibility into all current work across the project
+- Useful for understanding current commitments and prioritizing work
+- Epic status will be "In Progress", "To Do", or any non-Done status
 
 ### Charts Sheet
 
@@ -285,6 +421,10 @@ erDiagram
 | Status | String | 50 | No | - | - |
 | Sprint | String | 200 | Yes | N/A | - |
 | Parent Summary | String | 500 | Yes | N/A | - |
+| **Story Points** | Float | - | Yes | N/A | Must be >= 0 if set |
+| **Parent Key** | String | 50 | Yes | N/A | Format: PROJECT-NUMBER |
+| **Status Category** | String | 20 | No | - | Enum: To Do, In Progress, Done |
+| **Epic Status** | String | 50 | Yes | N/A | Only in epic sheets |
 | Author | String | 100 | No | - | - |
 | Date | Date | - | No | - | Format: YYYY-MM-DD |
 | Created Date | DateTime | - | No | - | Format: YYYY-MM-DD HH:MM:SS |
