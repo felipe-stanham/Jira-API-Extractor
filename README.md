@@ -10,10 +10,14 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
   - Extract all issues from specific sprints
   - Extract work logs within date ranges (project-wide)
   - Extract comments made within date ranges (project-wide)
+  - **NEW**: Filter epics by label and extract all related issues
+  - **NEW**: Automatically extract all open epic work
 - **📈 Advanced Excel Export**: Export to `.xlsx` with multiple sheets and charts:
-  - Sprint Issues with full details
+  - Sprint Issues with **story points, parent key, and status category**
   - Work Logs with time tracking
   - Comments with timestamps
+  - **NEW**: Epics with Label sheet (conditional)
+  - **NEW**: Open Epics sheet (always included)
   - Charts with visual analytics
 - **🎨 Visual Analytics**: Comprehensive charts in dedicated Charts sheet:
   - Issues by status (pie chart)
@@ -53,8 +57,9 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 ### Main Interface
 1. **Project Code**: Enter your Jira project key (e.g., "NG", "PROJ")
 2. **Sprint IDs**: Enter sprint IDs separated by commas (e.g., "123,124,125")
-3. **Date Range**: Use date pickers for worklog/comment extraction
-4. **Quick Buttons**: 
+3. **Epic Label**: (Optional) Filter epics by label to extract all related issues
+4. **Date Range**: Use date pickers for worklog/comment extraction
+5. **Quick Buttons**: 
    - Last 7 days
    - Last 30 days  
    - This month
@@ -62,8 +67,10 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 
 ### Extraction Options
 - **Sprint + Date Range**: Get sprint issues AND worklogs/comments in date range
-- **Sprint Only**: Get only sprint issues
+- **Sprint Only**: Get only sprint issues with enhanced columns
 - **Date Range Only**: Get only worklogs/comments in date range
+- **Epic Label**: Get all issues from epics with specific label
+- **Combined**: Mix any combination of the above options
 
 ### Real-time Progress
 - Live progress bar during extraction
@@ -75,19 +82,26 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 ### Arguments
 - `--project`: (Required) Jira project key (e.g., `NG`)
 - `--sprint`: (Optional) Sprint ID(s), comma-separated
+- `--epic_label`: (Optional) Epic label to filter by (e.g., `Q1-2025`)
 - `--start_date`: (Optional) Start date (`YYYY-MM-DD`)
 - `--end_date`: (Optional) End date (`YYYY-MM-DD`)
 
 ### Examples
 ```bash
+# Get sprint issues with enhanced columns (story points, parent key, status category)
+python3 main.py --project NG --sprint 528
+
 # Get sprint issues + worklogs in date range
 python3 main.py --project NG --sprint 528 --start_date 2025-07-14 --end_date 2025-07-18
 
-# Get only sprint issues
-python3 main.py --project NG --sprint 528
-
 # Get only worklogs/comments in date range
 python3 main.py --project NG --start_date 2025-07-14 --end_date 2025-07-18
+
+# Get all issues from epics with specific label
+python3 main.py --project NG --epic_label "Q1-2025"
+
+# Combined: Sprint + Epic Label + Date Range
+python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 2025-07-14 --end_date 2025-07-18
 ```
 
 ## 🎯 Key Features
@@ -100,12 +114,15 @@ python3 main.py --project NG --start_date 2025-07-14 --end_date 2025-07-18
 
 ### 2. **Comprehensive Data Extraction**
 - Complete pagination support for large datasets
-- Sprint issues with full details
+- Sprint issues with **story points, parent key, and status category**
 - Project-wide worklogs and comments
+- **Epic-based filtering** by label
+- **Automatic open epic tracking**
 - Flexible date range selection
 
 ### 3. **Advanced Excel Export**
 - Multiple sheets with rich formatting
+- **Up to 7 sheets**: Sprint(s), Epics with Label, Open Epics, Work Logs, Comments, Charts
 - Dynamic charts with professional styling
 - Formula-based calculations
 - Color-coded visualizations
@@ -117,27 +134,44 @@ python3 main.py --project NG --start_date 2025-07-14 --end_date 2025-07-18
 
 ## 📊 Output
 
-The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 4 sheets:
+The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 7 sheets:
 
-### 1. **Sprint Issues Sheet**
-- Complete issue details (key, summary, status, type, assignee, etc.)
-- Sprint information and story points
-- Links and priority information
-- Formatted for easy reading
+### 1. **Sprint Issues Sheet(s)** ⭐ ENHANCED
+- Complete issue details (key, summary, status, type)
+- **NEW**: Story points estimate
+- **NEW**: Parent key (direct epic reference)
+- **NEW**: Status category (To Do, In Progress, Done)
+- Sprint information
+- Parent summary
+- One sheet per sprint (for multiple sprints)
 
-### 2. **Work Logs Sheet** 
+### 2. **Epics with Label Sheet** ⭐ NEW (Conditional)
+- All issues from epics matching specified label
+- Same columns as Sprint sheets plus **Epic Status**
+- Ignores date ranges - shows all work for labeled epics
+- Only created when `--epic_label` parameter provided
+- Useful for tracking quarterly or initiative-based work
+
+### 3. **Open Epics Sheet** ⭐ NEW (Always Included)
+- All issues from epics not in "Done" status
+- Same columns as Sprint sheets plus **Epic Status**
+- Provides visibility into current commitments
+- Always created - shows all active epic work
+- Useful for understanding current workload
+
+### 4. **Work Logs Sheet** 
 - Time entries with author and date
 - Issue keys and descriptions
 - Sprint associations
 - Time spent calculations
 
-### 3. **Comments Sheet**
+### 5. **Comments Sheet**
 - All comments with timestamps
 - Author information
 - Issue context
 - Formatted comment content
 
-### 4. **Charts Sheet**
+### 6. **Charts Sheet**
 - **Issues by Status**: Pie chart showing distribution
 - **Issues by Type**: Pie chart for issue types
 - **Time by Type per Sprint**: Individual pie charts for each sprint
@@ -153,7 +187,17 @@ JIRA_API_URL="https://your-company.atlassian.net"
 JIRA_USER_EMAIL="your-email@company.com"
 JIRA_API_TOKEN="your-api-token"
 STREAMLIT_PORT=8501
+
+# Optional: Story Points custom field (varies by Jira instance)
+# Common values: customfield_10016, customfield_10026
+# JIRA_STORY_POINTS_FIELD="customfield_10016"
 ```
+
+### Story Points Configuration
+The story points field varies by Jira instance. The default is `customfield_10016`. If your instance uses a different field:
+1. Find your story points field ID in Jira
+2. Add `JIRA_STORY_POINTS_FIELD="customfield_XXXXX"` to your `JiraExtractor.env`
+3. Restart the application
 
 ### Getting Your API Token
 1. Go to [Atlassian API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
