@@ -95,7 +95,7 @@ def save_config(url, email, token):
         st.error(f"Attempted to save to: {config_path}")
         return False
 
-def run_extraction(project, sprint_ids, start_date, end_date, progress_placeholder, log_placeholder):
+def run_extraction(project, sprint_ids, start_date, end_date, epic_label, progress_placeholder, log_placeholder):
     """Run the Jira data extraction with progress updates."""
     
     # Prepare command
@@ -103,6 +103,9 @@ def run_extraction(project, sprint_ids, start_date, end_date, progress_placehold
     
     if sprint_ids:
         cmd.extend(["--sprint", sprint_ids])
+    
+    if epic_label:
+        cmd.extend(["--epic_label", epic_label])
     
     if start_date and end_date:
         cmd.extend([
@@ -138,6 +141,10 @@ def run_extraction(project, sprint_ids, start_date, end_date, progress_placehold
                 # Update progress based on keywords in output
                 if "Fetching issues" in line:
                     progress_placeholder.progress(0.2, "Fetching sprint issues...")
+                elif "Fetching epics with label" in line:
+                    progress_placeholder.progress(0.3, "Fetching epics with label...")
+                elif "Fetching open epics" in line:
+                    progress_placeholder.progress(0.4, "Fetching open epics...")
                 elif "Fetching work logs" in line:
                     progress_placeholder.progress(0.5, "Fetching work logs...")
                 elif "Fetching comments" in line:
@@ -255,6 +262,14 @@ def main():
             help="Comma-separated list of sprint IDs (optional)"
         )
         
+        # Epic Label
+        epic_label = st.text_input(
+            "Epic Label",
+            value="",
+            placeholder="e.g., Q1-2025",
+            help="Filter epics by label - exports all issues from epics with this label (optional)"
+        )
+        
         st.subheader("📅 Date Range (Optional)")
         st.markdown("*Use date range to extract worklogs and comments*")
         
@@ -350,6 +365,7 @@ def main():
                     sprint_ids, 
                     start_date, 
                     end_date,
+                    epic_label,
                     progress_placeholder,
                     log_placeholder
                 )
