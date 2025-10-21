@@ -2,7 +2,7 @@
 
 import requests
 from datetime import datetime, timezone
-from config import JIRA_API_URL, get_auth
+from config import JIRA_API_URL, JIRA_STORY_POINTS_FIELD, get_auth
 from utils import parse_adf_to_text, paginate_request
 
 class JiraAPIClient:
@@ -19,7 +19,7 @@ class JiraAPIClient:
         agile_url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}/issue"
         params = {
             'jql': f'project = "{project_key}"',
-            'fields': 'summary,status,parent,issuetype'
+            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD}'
         }
         
         try:
@@ -450,3 +450,82 @@ class JiraAPIClient:
             
         except requests.exceptions.RequestException as e:
             return {'error': str(e)}
+    
+    def get_epics_by_label(self, project_key, label):
+        """
+        Fetches all epics in a project that have a specific label.
+        
+        Args:
+            project_key: The Jira project key
+            label: The label to filter epics by
+            
+        Returns:
+            List of epic issues
+        """
+        search_url = f"{self.base_url}/rest/api/3/search/jql"
+        jql = f'project = "{project_key}" AND type = Epic AND labels = "{label}"'
+        params = {
+            'jql': jql,
+            'fields': f'summary,status,issuetype,{JIRA_STORY_POINTS_FIELD}'
+        }
+        
+        try:
+            epics = paginate_request(
+                self.session, search_url, self.headers, params, self.auth
+            )
+            return epics
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching epics with label '{label}': {str(e)}")
+            return []
+    
+    def get_issues_in_epic(self, epic_key):
+        """
+        Fetches all issues that are children of a specific epic.
+        
+        Args:
+            epic_key: The epic issue key (e.g., "PROJ-123")
+            
+        Returns:
+            List of issues in the epic
+        """
+        search_url = f"{self.base_url}/rest/api/3/search/jql"
+        jql = f'parent = "{epic_key}"'
+        params = {
+            'jql': jql,
+            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD}'
+        }
+        
+        try:
+            issues = paginate_request(
+                self.session, search_url, self.headers, params, self.auth
+            )
+            return issues
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching issues for epic '{epic_key}': {str(e)}")
+            return []
+    
+    def get_open_epics(self, project_key):
+        """
+        Fetches all open epics in a project (status category != Done).
+        
+        Args:
+            project_key: The Jira project key
+            
+        Returns:
+            List of open epic issues
+        """
+        search_url = f"{self.base_url}/rest/api/3/search/jql"
+        jql = f'project = "{project_key}" AND type = Epic AND statusCategory != Done'
+        params = {
+            'jql': jql,
+            'fields': f'summary,status,issuetype,{JIRA_STORY_POINTS_FIELD}'
+        }
+        
+        try:
+            epics = paginate_request(
+                self.session, search_url, self.headers, params, self.auth
+            )
+            return epics
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching open epics: {str(e)}")
+            return []

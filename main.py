@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--sprint', help='Jira Sprint ID(s) (optional). Use comma-separated values for multiple sprints (e.g., 528,560).')
     parser.add_argument('--start_date', help='Start date for work logs and comments (YYYY-MM-DD, optional).')
     parser.add_argument('--end_date', help='End date for work logs and comments (YYYY-MM-DD, optional).')
+    parser.add_argument('--epic_label', help='Epic label to filter epics by (optional). Exports all issues from epics with this label.')
 
     args = parser.parse_args()
 
@@ -77,6 +78,8 @@ def main():
     issues_by_sprint = {}  # Dictionary to store issues by sprint ID
     worklogs = None
     comments = None
+    epic_label_issues = None
+    open_epic_issues = None
 
     if args.sprint:
         # Parse comma-separated sprint IDs
@@ -123,14 +126,74 @@ def main():
             print(f"Error fetching comments: {comments['error']}")
             return
         print(f"Found {len(comments)} comments")
+    
+    # Fetch epic-based data
+    if args.epic_label:
+        print(f"Fetching epics with label '{args.epic_label}'...")
+        epics = jira_client.get_epics_by_label(args.project.upper(), args.epic_label)
+        if epics:
+            print(f"Found {len(epics)} epics with label '{args.epic_label}'")
+            all_epic_issues = []
+            epic_statuses = {}
+            
+            for epic in epics:
+                epic_key = epic.get('key')
+                epic_status = epic.get('fields', {}).get('status', {}).get('name', 'N/A')
+                epic_statuses[epic_key] = epic_status
+                
+                print(f"  Fetching issues for epic {epic_key}...")
+                epic_issues = jira_client.get_issues_in_epic(epic_key)
+                print(f"  Found {len(epic_issues)} issues in epic {epic_key}")
+                all_epic_issues.extend(epic_issues)
+            
+            epic_label_issues = {
+                'issues': all_epic_issues,
+                'epic_statuses': epic_statuses
+            }
+            print(f"Total: {len(all_epic_issues)} issues from epics with label '{args.epic_label}'")
+        else:
+            print(f"Warning: No epics found with label '{args.epic_label}'")
+            epic_label_issues = {'issues': [], 'epic_statuses': {}}
+    
+    # Always fetch open epics
+    print(f"Fetching open epics in project {args.project}...")
+    open_epics = jira_client.get_open_epics(args.project.upper())
+    if open_epics:
+        print(f"Found {len(open_epics)} open epics")
+        all_open_epic_issues = []
+        open_epic_statuses = {}
+        
+        for epic in open_epics:
+            epic_key = epic.get('key')
+            epic_status = epic.get('fields', {}).get('status', {}).get('name', 'N/A')
+            open_epic_statuses[epic_key] = epic_status
+            
+            print(f"  Fetching issues for epic {epic_key}...")
+            epic_issues = jira_client.get_issues_in_epic(epic_key)
+            print(f"  Found {len(epic_issues)} issues in epic {epic_key}")
+            all_open_epic_issues.extend(epic_issues)
+        
+        open_epic_issues = {
+            'issues': all_open_epic_issues,
+            'epic_statuses': open_epic_statuses
+        }
+        print(f"Total: {len(all_open_epic_issues)} issues from open epics")
+    else:
+        print("No open epics found")
+        open_epic_issues = {'issues': [], 'epic_statuses': {}}
 
     # Check if any data was fetched
-    if not any([issues, worklogs, comments]):
-        print("No data to export. Please provide either --sprint or both --start_date and --end_date.")
+    if not any([issues, worklogs, comments, epic_label_issues, open_epic_issues]):
+        print("No data to export. Please provide either --sprint, --epic_label, or both --start_date and --end_date.")
         return
 
     print("Saving data to Excel...")
-    success, filename, error = exporter.save_to_excel(issues, worklogs, comments, issues_by_sprint=issues_by_sprint)
+    success, filename, error = exporter.save_to_excel(
+        issues, worklogs, comments, 
+        issues_by_sprint=issues_by_sprint,
+        epic_label_issues=epic_label_issues,
+        open_epic_issues=open_epic_issues
+    )
     
     if success:
         summary = []

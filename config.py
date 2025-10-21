@@ -17,6 +17,10 @@ JIRA_API_URL = os.getenv("JIRA_API_URL")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
 JIRA_USER_EMAIL = os.getenv("JIRA_USER_EMAIL")
 
+# Story Points custom field (varies by Jira instance)
+# Common values: customfield_10016, customfield_10026
+JIRA_STORY_POINTS_FIELD = os.getenv("JIRA_STORY_POINTS_FIELD", "customfield_10016")
+
 def get_auth():
     """Returns the authentication object for Jira API requests."""
     return (JIRA_USER_EMAIL, JIRA_API_TOKEN)
