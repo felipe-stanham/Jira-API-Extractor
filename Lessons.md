@@ -150,6 +150,68 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: Visual organization improves data comprehension
 - **Files**: `charts_helper_enhanced.py`
 
+## P-001: Enhanced Epic and Sprint Analytics
+
+### 23. Story Points Custom Field Variability
+- **Issue**: Story points field ID varies across Jira instances
+- **Solution**: Made field configurable via environment variable with sensible default
+- **Lesson**: Custom fields are not standardized; always make them configurable
+- **Files**: `config.py`, `.env.example`, `jira_api.py`
+
+### 24. Status Category vs Status
+- **Issue**: Raw status values don't provide high-level progress view
+- **Solution**: Use Jira's built-in `statusCategory` field (To Do, In Progress, Done)
+- **Lesson**: Jira provides standardized category fields that work across all workflows
+- **Files**: `jira_api.py`, `excel_exporter.py`
+
+### 25. Parent Key vs Parent Summary
+- **Issue**: Parent summary alone doesn't provide direct issue reference
+- **Solution**: Include both parent key and parent summary in exports
+- **Lesson**: Provide both human-readable and machine-readable identifiers
+- **Files**: `excel_exporter.py`
+
+### 26. Epic Filtering by Label
+- **Issue**: Users need to track work by initiative/quarter, not just sprint
+- **Solution**: Implemented epic label filtering with dedicated sheet
+- **Lesson**: Epic-level tracking is essential for long-term planning
+- **Files**: `jira_api.py`, `main.py`, `excel_exporter.py`
+
+### 27. Open Epics Visibility
+- **Issue**: No easy way to see all current commitments across project
+- **Solution**: Always export "Open Epics" sheet showing non-done epic work
+- **Lesson**: Automatic visibility into open work helps with prioritization
+- **Files**: `jira_api.py`, `main.py`, `excel_exporter.py`
+
+### 28. Epic Status Tracking
+- **Issue**: Child issues don't show parent epic status
+- **Solution**: Added epic status column to epic-based sheets
+- **Lesson**: Context about parent status is valuable for understanding work state
+- **Files**: `excel_exporter.py`
+
+### 29. Conditional Sheet Creation
+- **Issue**: Not all sheets are relevant for all extractions
+- **Solution**: Make "Epics with Label" sheet conditional on parameter
+- **Lesson**: Conditional features reduce clutter for users who don't need them
+- **Files**: `excel_exporter.py`, `main.py`
+
+### 30. Graceful Null Handling
+- **Issue**: Missing story points or parent keys cause display issues
+- **Solution**: Display "N/A" for missing optional fields
+- **Lesson**: Always handle null/missing data gracefully with clear indicators
+- **Files**: `excel_exporter.py`
+
+### 31. Epic Sheet Column Consistency
+- **Issue**: Different sheets had different column structures
+- **Solution**: Use same base columns across all issue sheets, add epic-specific columns
+- **Lesson**: Consistent structure across sheets improves user experience
+- **Files**: `excel_exporter.py`
+
+### 32. JQL for Epic Filtering
+- **Issue**: Need efficient way to find epics by label and status
+- **Solution**: Use JQL queries: `type=Epic AND labels="label"` and `statusCategory!=Done`
+- **Lesson**: JQL is powerful for complex filtering at the API level
+- **Files**: `jira_api.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -162,6 +224,11 @@ This document tracks fixes, corrections, and important learnings from the develo
 8. **Test with real data** to catch edge cases
 9. **Document API quirks** for future reference
 10. **Keep modules focused** on single responsibilities
+11. **Make custom fields configurable** - they vary across instances
+12. **Use Jira's standardized fields** (like statusCategory) when available
+13. **Provide both keys and summaries** for better usability
+14. **Handle null/missing data gracefully** with clear indicators
+15. **Keep sheet structures consistent** across similar data types
 
 ## Future Improvements to Consider
 
