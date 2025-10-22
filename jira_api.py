@@ -486,23 +486,69 @@ class JiraAPIClient:
             epic_key: The epic issue key (e.g., "PROJ-123")
             
         Returns:
-            List of issues in the epic
+            List of issues in the epic with sprint information
         """
         search_url = f"{self.base_url}/rest/api/3/search/jql"
         jql = f'parent = "{epic_key}"'
         params = {
             'jql': jql,
-            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD}'
+            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD},sprint,customfield_10020,customfield_10010'
         }
         
         try:
             issues = paginate_request(
                 self.session, search_url, self.headers, params, self.auth
             )
+            
+            # Add sprint information to each issue
+            for issue in issues:
+                sprint_names = self._extract_sprint_names(issue)
+                issue['sprint_name'] = sprint_names
+            
             return issues
         except requests.exceptions.RequestException as e:
             print(f"Error fetching issues for epic '{epic_key}': {str(e)}")
             return []
+    
+    def _extract_sprint_names(self, issue):
+        """
+        Extracts sprint names from an issue, handling multiple sprints.
+        
+        Args:
+            issue: Issue dictionary from Jira API
+            
+        Returns:
+            String with sprint names separated by commas, or empty string if no sprints
+        """
+        sprint_names = []
+        fields = issue.get('fields', {})
+        
+        # Check multiple possible sprint fields
+        for field_name in ['sprint', 'customfield_10020', 'customfield_10010']:
+            sprint_data = fields.get(field_name)
+            
+            if sprint_data:
+                # Handle list of sprints
+                if isinstance(sprint_data, list):
+                    for sprint in sprint_data:
+                        if isinstance(sprint, dict):
+                            name = sprint.get('name')
+                            if name and name not in sprint_names:
+                                sprint_names.append(name)
+                        elif isinstance(sprint, str):
+                            # Parse string format: "com.atlassian.greenhopper.service.sprint.Sprint@...name=Sprint Name,..."
+                            if 'name=' in sprint:
+                                name_part = sprint.split('name=')[1].split(',')[0]
+                                if name_part and name_part not in sprint_names:
+                                    sprint_names.append(name_part)
+                # Handle single sprint dict
+                elif isinstance(sprint_data, dict):
+                    name = sprint_data.get('name')
+                    if name and name not in sprint_names:
+                        sprint_names.append(name)
+        
+        # Return comma-separated sprint names or empty string
+        return ','.join(sprint_names) if sprint_names else ''
     
     def get_open_epics(self, project_key):
         """

@@ -45,10 +45,10 @@ class ExcelExporter:
                         parent_summary = parent_field.get('fields', {}).get('summary', 'N/A')
                         parent_key = parent_field.get('key', 'N/A')
                     
-                    # Get story points
-                    story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD, 'N/A')
+                    # Get story points (use 0 if not set)
+                    story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
                     if story_points is None:
-                        story_points = 'N/A'
+                        story_points = 0
                     
                     # Get status category
                     status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')
@@ -85,10 +85,10 @@ class ExcelExporter:
                     parent_summary = parent_field.get('fields', {}).get('summary', 'N/A')
                     parent_key = parent_field.get('key', 'N/A')
                 
-                # Get story points
-                story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD, 'N/A')
+                # Get story points (use 0 if not set)
+                story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
                 if story_points is None:
-                    story_points = 'N/A'
+                    story_points = 0
                 
                 # Get status category
                 status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')
@@ -101,7 +101,7 @@ class ExcelExporter:
                 ]
                 
                 if has_sprint_info:
-                    row_data.append(issue.get('sprint_name', 'N/A'))
+                    row_data.append(issue.get('sprint_name', ''))
                 
                 row_data.extend([parent_summary, story_points, parent_key, status_category])
                 ws_issues.append(row_data)
@@ -197,16 +197,16 @@ class ExcelExporter:
                 # Get epic status from the epic_statuses dict
                 epic_status = epic_statuses.get(parent_key, 'N/A')
             
-            # Get story points
-            story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD, 'N/A')
+            # Get story points (use 0 if not set)
+            story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
             if story_points is None:
-                story_points = 'N/A'
+                story_points = 0
             
             # Get status category
             status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')
             
-            # Get sprint info if available
-            sprint_name = issue.get('sprint_name', 'N/A')
+            # Get sprint info if available (empty string if no sprint)
+            sprint_name = issue.get('sprint_name', '')
             
             ws.append([
                 issue.get('key'),
