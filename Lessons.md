@@ -212,6 +212,26 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: JQL is powerful for complex filtering at the API level
 - **Files**: `jira_api.py`
 
+### 33. Story Points Field Discovery (P-001 Testing)
+- **Issue**: Story points showing as 0 for all issues despite having values
+- **Root Cause**: Default field `customfield_10016` was incorrect for this instance
+- **Solution**: Created test script to inspect all custom fields, found correct field `customfield_10028`
+- **Lesson**: Always verify custom field IDs against actual Jira instance, don't assume defaults
+- **Files**: `config.py`, `JiraExtractor.env`
+
+### 34. Sprint Data in Epic Queries (P-001 Testing)
+- **Issue**: Sprint column showing empty in epic-based sheets
+- **Root Cause**: `get_issues_in_epic()` was not fetching sprint fields
+- **Solution**: Added sprint fields to query and created `_extract_sprint_names()` helper
+- **Lesson**: When adding new sheets, ensure all required fields are fetched in API calls
+- **Files**: `jira_api.py`
+
+### 35. Zero vs N/A for Numeric Fields (P-001 Testing)
+- **Issue**: User requirement to show 0 instead of "N/A" for missing story points
+- **Solution**: Changed null handling to use 0 for story points, empty string for sprints
+- **Lesson**: Numeric fields should use 0 for missing values, text fields use empty string
+- **Files**: `excel_exporter.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -229,6 +249,9 @@ This document tracks fixes, corrections, and important learnings from the develo
 13. **Provide both keys and summaries** for better usability
 14. **Handle null/missing data gracefully** with clear indicators
 15. **Keep sheet structures consistent** across similar data types
+16. **Verify custom field IDs** against actual instance before deployment
+17. **Use 0 for missing numeric fields**, empty string for missing text fields
+18. **Fetch all required fields** in API queries for new features
 
 ## Future Improvements to Consider
 
