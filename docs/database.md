@@ -101,7 +101,7 @@ erDiagram
 | Status | String | Current issue status | To Do, In Progress, DONE, Ready for Prod |
 | Sprint | String | Sprint name | Cycle 2, Ref.Cycle 1 |
 | Parent Summary | String | Parent issue summary (if exists) | Epic: User Management |
-| **Story Points** | Float | **Story point estimate** | **5.0, 8.0, N/A** |
+| **Story Points** | Float | **Story point estimate** | **5.0, 8.0, 0** |
 | **Parent Key** | String | **Parent issue key** | **NG-100, N/A** |
 | **Status Category** | String | **High-level status category** | **To Do, In Progress, Done** |
 
@@ -116,11 +116,11 @@ Issue Key | Issue Type | Summary                    | Status      | Sprint      
 ----------|------------|----------------------------|-------------|-------------|-------------------|--------------|------------|----------------
 NG-951    | Refinement | API endpoint design        | DONE        | Next in line| Epic: API Layer   | 3.0          | NG-100     | Done
 NG-961    | Story      | User login functionality   | In Progress | Cycle 2     | Epic: Auth        | 8.0          | NG-200     | In Progress
-NG-956    | Bug        | Fix validation error       | DONE        | Ref.Cycle 1 | N/A               | N/A          | N/A        | Done
+NG-956    | Bug        | Fix validation error       | DONE        | Ref.Cycle 1 | N/A               | 0            | N/A        | Done
 ```
 
 **New Fields (P-001)**:
-- **Story Points**: Configurable custom field (default: `customfield_10016`), displays "N/A" if not set
+- **Story Points**: Configurable custom field (default: `customfield_10016`), displays `0` if not set
 - **Parent Key**: Direct reference to parent issue, useful for epic tracking
 - **Status Category**: Jira's built-in categorization (To Do, In Progress, Done)
 
@@ -216,9 +216,9 @@ NG-956    | Bug        | Fix validation| DONE       | John Doe  | 2025-07-14 16:
 | Issue Type | String | Type of issue | Story, Bug, Refinement |
 | Summary | String | Issue title/summary | Implement user authentication |
 | Status | String | Current issue status | To Do, In Progress, DONE |
-| Sprint | String | Sprint name (if assigned) | Cycle 2, N/A |
+| Sprint | String | Sprint name (if assigned) | Cycle 2, (empty) |
 | Parent Summary | String | Parent epic summary | Epic: Q1 Features |
-| Story Points | Float | Story point estimate | 5.0, N/A |
+| Story Points | Float | Story point estimate | 5.0, 0 |
 | Parent Key | String | Parent epic key | NG-100 |
 | Status Category | String | High-level status category | To Do, In Progress, Done |
 | **Epic Status** | String | **Status of the parent epic** | **In Progress, DONE** |
@@ -233,7 +233,7 @@ NG-956    | Bug        | Fix validation| DONE       | John Doe  | 2025-07-14 16:
 Issue Key | Issue Type | Summary              | Status      | Sprint  | Parent Summary    | Story Points | Parent Key | Status Category | Epic Status
 ----------|------------|----------------------|-------------|---------|-------------------|--------------|------------|-----------------|-------------
 NG-951    | Story      | User authentication  | In Progress | Cycle 2 | Epic: Q1 Features | 8.0          | NG-100     | In Progress     | In Progress
-NG-952    | Story      | Password reset       | To Do       | N/A     | Epic: Q1 Features | 5.0          | NG-100     | To Do           | In Progress
+NG-952    | Story      | Password reset       | To Do       |         | Epic: Q1 Features | 5.0          | NG-100     | To Do           | In Progress
 NG-953    | Bug        | Fix login timeout    | DONE        | Cycle 1 | Epic: Q1 Features | 3.0          | NG-100     | Done            | In Progress
 ```
 
@@ -263,9 +263,9 @@ python3 main.py --project NG --epic_label "Q1-2025"
 | Issue Type | String | Type of issue | Story, Bug, Refinement |
 | Summary | String | Issue title/summary | Implement dashboard |
 | Status | String | Current issue status | In Progress, To Do |
-| Sprint | String | Sprint name (if assigned) | Cycle 2, N/A |
+| Sprint | String | Sprint name (if assigned) | Cycle 2, (empty) |
 | Parent Summary | String | Parent epic summary | Epic: Dashboard |
-| Story Points | Float | Story point estimate | 8.0, N/A |
+| Story Points | Float | Story point estimate | 8.0, 0 |
 | Parent Key | String | Parent epic key | NG-200 |
 | Status Category | String | High-level status category | To Do, In Progress |
 | **Epic Status** | String | **Status of the parent epic** | **In Progress, To Do** |
@@ -281,7 +281,7 @@ python3 main.py --project NG --epic_label "Q1-2025"
 Issue Key | Issue Type | Summary              | Status      | Sprint  | Parent Summary  | Story Points | Parent Key | Status Category | Epic Status
 ----------|------------|----------------------|-------------|---------|-----------------|--------------|------------|-----------------|-------------
 NG-961    | Story      | Dashboard widgets    | In Progress | Cycle 2 | Epic: Dashboard | 8.0          | NG-200     | In Progress     | In Progress
-NG-962    | Story      | Chart components     | To Do       | N/A     | Epic: Dashboard | 5.0          | NG-200     | To Do           | In Progress
+NG-962    | Story      | Chart components     | To Do       |         | Epic: Dashboard | 5.0          | NG-200     | To Do           | In Progress
 NG-963    | Bug        | Fix data loading     | In Progress | Cycle 2 | Epic: Dashboard | 3.0          | NG-200     | In Progress     | In Progress
 ```
 
@@ -419,9 +419,9 @@ erDiagram
 | Issue Type | String | 50 | No | - | Enum: Story, Bug, Refinement, Ad-Hoc, Support, Emergency |
 | Summary | String | 500 | No | - | - |
 | Status | String | 50 | No | - | - |
-| Sprint | String | 200 | Yes | N/A | - |
+| Sprint | String | 200 | Yes | "" (empty) | Comma-separated for multiple sprints |
 | Parent Summary | String | 500 | Yes | N/A | - |
-| **Story Points** | Float | - | Yes | N/A | Must be >= 0 if set |
+| **Story Points** | Float | - | Yes | 0 | Must be >= 0 if set |
 | **Parent Key** | String | 50 | Yes | N/A | Format: PROJECT-NUMBER |
 | **Status Category** | String | 20 | No | - | Enum: To Do, In Progress, Done |
 | **Epic Status** | String | 50 | Yes | N/A | Only in epic sheets |
