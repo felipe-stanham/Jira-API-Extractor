@@ -6,6 +6,8 @@ from openpyxl.chart.label import DataLabelList
 from collections import Counter
 from charts_helper_enhanced import create_clean_charts_sheet
 from config import JIRA_STORY_POINTS_FIELD
+from progress_data_aggregator import calculate_epic_progress, calculate_sprint_composition
+from progress_charts_helper import create_percentage_bar_chart, create_stacked_bar_chart, create_composition_pie_chart
 
 class ExcelExporter:
     """Handles Excel export functionality."""
@@ -157,6 +159,11 @@ class ExcelExporter:
             self._create_charts_sheet(issues, worklogs, issues_by_sprint)
             sheets_created.append("Charts")
         
+        # Create Progress sheet with progress charts
+        if issues_by_sprint or epic_label_issues or open_epic_issues:
+            progress_sheet = self._create_progress_sheet(issues_by_sprint, epic_label_issues, open_epic_issues)
+            sheets_created.append(progress_sheet)
+        
         if not sheets_created:
             return False, None, "No data was fetched to save."
         
@@ -220,6 +227,103 @@ class ExcelExporter:
                 status_category,
                 epic_status
             ])
+    
+    def _create_progress_sheet(self, issues_by_sprint=None, epic_label_issues=None, open_epic_issues=None):
+        """
+        Creates Progress sheet with progress visualization charts.
+        
+        Args:
+            issues_by_sprint: Dict of sprint issues (sprint_id -> {name, issues})
+            epic_label_issues: List of issues from "Epics with Label" sheet
+            open_epic_issues: List of issues from "Open Epics" sheet
+        """
+        ws = self.wb.create_sheet(title="Progress")
+        
+        # Add sheet title
+        ws['A1'] = "Progress Charts"
+        ws['A1'].font = ws['A1'].font.copy(bold=True, size=14)
+        
+        current_row = 3
+        current_col = 1
+        
+        # Sprint Progress Charts (3 charts per sprint)
+        if issues_by_sprint:
+            for sprint_id, sprint_data in issues_by_sprint.items():
+                sprint_issues = sprint_data['issues']
+                sprint_name = sprint_data['name']
+                
+                # Calculate epic progress for this sprint
+                epic_progress = calculate_epic_progress(sprint_issues)
+                
+                if epic_progress:  # Only create charts if there's data
+                    # Chart 1: Sprint Progress in Percentage
+                    chart1, end_row1 = create_percentage_bar_chart(
+                        ws, epic_progress, current_row,
+                        f"{sprint_name} - Progress by Epic (%)"
+                    )
+                    ws.add_chart(chart1, f"A{current_row}")
+                    
+                    # Chart 2: Sprint Progress in Story Points (Stacked)
+                    chart2, end_row2 = create_stacked_bar_chart(
+                        ws, epic_progress, current_row,
+                        f"{sprint_name} - Progress by Epic (Story Points)"
+                    )
+                    ws.add_chart(chart2, f"Q{current_row}")  # Column Q (17)
+                    
+                    # Chart 3: Sprint Composition (Pie)
+                    composition_data = calculate_sprint_composition(sprint_issues)
+                    if composition_data:
+                        chart3, end_row3 = create_composition_pie_chart(
+                            ws, composition_data, max(end_row1, end_row2) + 2,
+                            f"{sprint_name} - Composition by Epic"
+                        )
+                        ws.add_chart(chart3, f"AG{current_row}")  # Column AG (33)
+                    
+                    # Move to next chart group
+                    current_row = max(end_row1, end_row2, end_row3 if composition_data else end_row2) + 20
+        
+        # Epic Label Progress Charts (2 charts, conditional)
+        if epic_label_issues and epic_label_issues.get('issues'):
+            epic_progress = calculate_epic_progress(epic_label_issues['issues'])
+            
+            if epic_progress:
+                # Chart 4: Epic Label Progress in Percentage
+                chart4, end_row4 = create_percentage_bar_chart(
+                    ws, epic_progress, current_row,
+                    "Epic Label Progress by Epic (%)"
+                )
+                ws.add_chart(chart4, f"A{current_row}")
+                
+                # Chart 5: Epic Label Progress in Story Points (Stacked)
+                chart5, end_row5 = create_stacked_bar_chart(
+                    ws, epic_progress, current_row,
+                    "Epic Label Progress by Epic (Story Points)"
+                )
+                ws.add_chart(chart5, f"Q{current_row}")  # Column Q (17)
+                
+                # Move to next chart group
+                current_row = max(end_row4, end_row5) + 20
+        
+        # Open Epic Progress Charts (2 charts, always created)
+        if open_epic_issues and open_epic_issues.get('issues'):
+            epic_progress = calculate_epic_progress(open_epic_issues['issues'])
+            
+            if epic_progress:
+                # Chart 6: Open Epic Progress in Percentage
+                chart6, end_row6 = create_percentage_bar_chart(
+                    ws, epic_progress, current_row,
+                    "Open Epics Progress by Epic (%)"
+                )
+                ws.add_chart(chart6, f"A{current_row}")
+                
+                # Chart 7: Open Epic Progress in Story Points (Stacked)
+                chart7, end_row7 = create_stacked_bar_chart(
+                    ws, epic_progress, current_row,
+                    "Open Epics Progress by Epic (Story Points)"
+                )
+                ws.add_chart(chart7, f"Q{current_row}")  # Column Q (17)
+        
+        return "Progress"
     
     def get_workbook(self):
         """Returns the current workbook instance."""
