@@ -206,7 +206,7 @@ The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up
 - **Detailed Time Tracking Table**:
   - Columns: Date, Author, Issue Key, Hours
   - Sorted by date, then author, then issue
-  - Granular view of all time entries
+  - Aggregated view: one row per issue/date/author with total hours
   - Excel Table: DetailedTimeTracking
 - **Summary by Author and Date Table**:
   - Columns: Author, Date, Total Hours
@@ -218,8 +218,14 @@ The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up
   - Overall time summary per developer
   - Sorted by author
   - Excel Table: TotalByAuthor
+- **Hours by Date per Author Chart**:
+  - Line chart showing time trends over time
+  - X-Axis: Dates (chronologically sorted)
+  - Y-Axis: Hours
+  - One series per author for easy comparison
 - **Features**:
   - Professional formatted Excel tables
+  - Line chart visualization for time trends
   - Easy conversion to pivot tables (Insert > PivotTable in Excel)
   - Multiple aggregation levels for different analysis needs
   - Only created when worklogs exist

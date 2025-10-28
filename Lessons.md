@@ -316,6 +316,20 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: Include user-friendly instructions directly in the output
 - **Files**: `excel_exporter.py`
 
+### 49. Data Aggregation for Meaningful Tables (P-003 Enhancement)
+- **Issue**: Detailed table was showing raw worklog entries (same as Work Logs sheet)
+- **User Feedback**: "The level of detail currently provided is the same as going to the worklogs sheet"
+- **Solution**: Aggregate by (Date, Author, Issue Key) to show one row per combination with total hours
+- **Lesson**: Aggregate data appropriately for each table's purpose - avoid duplicating raw data
+- **Files**: `excel_exporter.py`
+
+### 50. Line Charts for Time Trends (P-003 Enhancement)
+- **Issue**: Need visual representation of time trends over time
+- **Solution**: Added line chart with dates on X-axis, hours on Y-axis, one series per author
+- **Implementation**: Create data table with dates as rows, authors as columns, then reference in LineChart
+- **Lesson**: Line charts are ideal for showing trends over time with multiple series for comparison
+- **Files**: `excel_exporter.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -349,6 +363,8 @@ This document tracks fixes, corrections, and important learnings from the develo
 29. **Provide multiple aggregation levels** to serve different analysis needs
 30. **Include user instructions** directly in output files
 31. **Leverage native Excel features** when library support is limited
+32. **Aggregate data appropriately** for each table's purpose - avoid duplicating raw data
+33. **Use line charts** for showing trends over time with multiple series
 
 ## Future Improvements to Consider
 

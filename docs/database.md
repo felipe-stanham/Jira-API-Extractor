@@ -461,7 +461,9 @@ Propensity Model Report                 | 13.0         | 3    | 0           | 20
 
 **Sorting**: Date → Author → Issue Key
 
-**Purpose**: Granular view of all time entries for detailed analysis
+**Aggregation**: Groups by (Date, Author, Issue Key) and sums hours
+
+**Purpose**: Aggregated view showing one row per issue/date/author with total hours for that combination
 
 #### 2. Summary by Author and Date Table
 
@@ -496,8 +498,24 @@ Propensity Model Report                 | 13.0         | 3    | 0           | 20
 
 **Data Source**: Work Logs sheet
 
+#### 4. Hours by Date per Author Chart
+
+**Chart Type**: Line Chart
+
+**Data Structure**:
+- X-Axis: Dates (chronologically sorted)
+- Y-Axis: Hours
+- Series: One line per author
+
+**Purpose**: Visual representation of time trends over time per developer
+
+**Chart Size**: 20 width x 10 height
+
+**Data Source**: Summary by Author and Date aggregation
+
 **Features**:
 - Professional Excel table formatting with styling
+- Line chart visualization for time trends
 - Easy conversion to pivot tables (Insert > PivotTable in Excel)
 - User-friendly instructions included in sheet
 - Multiple aggregation levels for different analysis needs
