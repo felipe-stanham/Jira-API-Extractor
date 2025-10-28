@@ -1,7 +1,7 @@
 """Excel export functionality for Jira data."""
 
 from openpyxl import Workbook
-from openpyxl.chart import PieChart, BarChart, Reference
+from openpyxl.chart import PieChart, BarChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from collections import Counter
@@ -378,8 +378,8 @@ class ExcelExporter:
         ws['A2'] = "Tip: Select any table below and use Insert > PivotTable in Excel for interactive analysis"
         ws['A2'].font = ws['A2'].font.copy(italic=True, size=10)
         
-        # Table 1: Time by Date, Author, and Issue
-        # This provides the detailed view requested
+        # Table 1: Time by Date, Author, and Issue (Aggregated)
+        # This provides the detailed view requested - one row per issue/date/author
         ws['A4'] = "Detailed Time Tracking"
         ws['A4'].font = ws['A4'].font.copy(bold=True, size=12)
         
@@ -394,17 +394,24 @@ class ExcelExporter:
         for col in range(1, 5):
             ws.cell(current_row, col).font = ws.cell(current_row, col).font.copy(bold=True)
         
-        # Sort worklogs by date, then author, then issue
-        sorted_worklogs = sorted(worklogs_data, key=lambda x: (x['date'] or '', x['author'] or '', x['issue_key'] or ''))
+        # Aggregate by date, author, and issue key
+        from collections import defaultdict
+        date_author_issue_hours = defaultdict(float)
+        for wl in worklogs_data:
+            key = (wl['date'], wl['author'], wl['issue_key'])
+            date_author_issue_hours[key] += wl['hours']
+        
+        # Sort by date, then author, then issue
+        sorted_aggregated = sorted(date_author_issue_hours.items(), key=lambda x: (x[0][0] or '', x[0][1] or '', x[0][2] or ''))
         
         # Write data
         current_row += 1
         start_row_table1 = current_row
-        for wl in sorted_worklogs:
-            ws.cell(current_row, 1, wl['date'])
-            ws.cell(current_row, 2, wl['author'])
-            ws.cell(current_row, 3, wl['issue_key'])
-            ws.cell(current_row, 4, wl['hours'])
+        for (date, author, issue_key), hours in sorted_aggregated:
+            ws.cell(current_row, 1, date)
+            ws.cell(current_row, 2, author)
+            ws.cell(current_row, 3, issue_key)
+            ws.cell(current_row, 4, hours)
             current_row += 1
         
         end_row_table1 = current_row - 1
@@ -512,6 +519,66 @@ class ExcelExporter:
             )
             table3.tableStyleInfo = style3
             ws.add_table(table3)
+        
+        # Line Graph: Hours by Date per Author
+        # Position after Table 3
+        current_row += 3
+        ws.cell(current_row, 1, "Hours by Date per Author")
+        ws.cell(current_row, 1).font = ws.cell(current_row, 1).font.copy(bold=True, size=12)
+        
+        current_row += 2
+        
+        # Prepare data for line chart
+        # Get unique dates and authors
+        dates = sorted(set(date for (author, date), hours in author_date_hours.items() if date))
+        authors = sorted(set(author for (author, date), hours in author_date_hours.items() if author))
+        
+        if dates and authors:
+            # Write chart data
+            chart_start_row = current_row
+            
+            # Headers: Date column + one column per author
+            ws.cell(current_row, 1, "Date")
+            ws.cell(current_row, 1).font = ws.cell(current_row, 1).font.copy(bold=True)
+            for col_idx, author in enumerate(authors, start=2):
+                ws.cell(current_row, col_idx, author)
+                ws.cell(current_row, col_idx).font = ws.cell(current_row, col_idx).font.copy(bold=True)
+            
+            current_row += 1
+            chart_data_start_row = current_row
+            
+            # Data rows: one row per date
+            for date in dates:
+                ws.cell(current_row, 1, date)
+                for col_idx, author in enumerate(authors, start=2):
+                    hours = author_date_hours.get((author, date), 0)
+                    ws.cell(current_row, col_idx, hours)
+                current_row += 1
+            
+            chart_data_end_row = current_row - 1
+            
+            # Create line chart
+            line_chart = LineChart()
+            line_chart.title = "Hours by Date per Author"
+            line_chart.style = 13
+            line_chart.y_axis.title = "Hours"
+            line_chart.x_axis.title = "Date"
+            line_chart.height = 10  # Default is 7.5
+            line_chart.width = 20   # Default is 15
+            
+            # Add data - dates as categories (X-axis)
+            dates_ref = Reference(ws, min_col=1, min_row=chart_data_start_row, max_row=chart_data_end_row)
+            
+            # Add series for each author
+            for col_idx, author in enumerate(authors, start=2):
+                data_ref = Reference(ws, min_col=col_idx, min_row=chart_start_row, max_row=chart_data_end_row)
+                line_chart.add_data(data_ref, titles_from_data=True)
+            
+            line_chart.set_categories(dates_ref)
+            
+            # Position chart to the right of the data
+            chart_col = len(authors) + 3  # Leave some space
+            ws.add_chart(line_chart, f"{chr(64 + chart_col)}{chart_start_row}")
         
         # Adjust column widths
         ws.column_dimensions['A'].width = 20
