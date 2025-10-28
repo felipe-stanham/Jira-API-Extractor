@@ -15,6 +15,7 @@ erDiagram
     WORKBOOK ||--|| COMMENTS_SHEET : contains
     WORKBOOK ||--|| CHARTS_SHEET : contains
     WORKBOOK ||--|| PROGRESS_SHEET : contains
+    WORKBOOK ||--o| TIME_TRACKING_SHEET : contains
     
     SPRINT_SHEET {
         string IssueKey PK
@@ -435,6 +436,94 @@ Goal Highlights with Segment NBA        | 92.3         | 24   | 0           | 2 
 Funnel Report                           | 90.0         | 27   | 3           | 0     | 30
 (TBD) YouTube Live Comments             | 64.0         | 16   | 9           | 0     | 25
 Propensity Model Report                 | 13.0         | 3    | 0           | 20    | 23
+```
+
+### Time Tracking Sheet
+
+**Sheet Name**: `Time Tracking`
+
+**Purpose**: Provides formatted tables for time tracking analysis with easy pivot table creation
+
+**Conditional**: Only created when worklogs exist
+
+**Tables**:
+
+#### 1. Detailed Time Tracking Table
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Date | Date | Worklog date | 2024-08-14 |
+| Author | String | Developer name | Florencia Migues |
+| Issue Key | String | Jira issue identifier | NG-78 |
+| Hours | Float | Time spent in hours | 20.0 |
+
+**Excel Table Name**: DetailedTimeTracking
+
+**Sorting**: Date → Author → Issue Key
+
+**Purpose**: Granular view of all time entries for detailed analysis
+
+#### 2. Summary by Author and Date Table
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Author | String | Developer name | Florencia Migues |
+| Date | Date | Worklog date | 2024-08-14 |
+| Total Hours | Float | Sum of hours for author on date | 20.0 |
+
+**Excel Table Name**: SummaryByAuthorDate
+
+**Sorting**: Author → Date
+
+**Purpose**: Daily time tracking per developer
+
+**Aggregation**: Groups by (Author, Date) and sums hours
+
+#### 3. Total Hours by Author Table
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Author | String | Developer name | Florencia Migues |
+| Total Hours | Float | Sum of all hours for author | 120.5 |
+
+**Excel Table Name**: TotalByAuthor
+
+**Sorting**: Author
+
+**Purpose**: Overall time summary per developer
+
+**Aggregation**: Groups by Author and sums all hours
+
+**Data Source**: Work Logs sheet
+
+**Features**:
+- Professional Excel table formatting with styling
+- Easy conversion to pivot tables (Insert > PivotTable in Excel)
+- User-friendly instructions included in sheet
+- Multiple aggregation levels for different analysis needs
+- Proper column widths for readability
+
+**Sample Data**:
+```
+Detailed Time Tracking:
+Date       | Author            | Issue Key | Hours
+-----------|-------------------|-----------|------
+2024-08-14 | Florencia Migues  | NG-78     | 20.0
+2024-08-15 | Florencia Migues  | NG-79     | 15.5
+2024-08-15 | John Doe          | NG-80     | 8.0
+
+Summary by Author and Date:
+Author            | Date       | Total Hours
+------------------|------------|------------
+Florencia Migues  | 2024-08-14 | 20.0
+Florencia Migues  | 2024-08-15 | 15.5
+John Doe          | 2024-08-15 | 8.0
+
+Total Hours by Author:
+Author            | Total Hours
+------------------|------------
+Florencia Migues  | 35.5
+John Doe          | 8.0
 ```
 
 ## Data Relationships

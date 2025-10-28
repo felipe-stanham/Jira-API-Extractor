@@ -289,6 +289,33 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: Always account for missing relationships in data aggregation
 - **Files**: `progress_data_aggregator.py`
 
+## P-003: Time Tracking
+
+### 45. openpyxl Pivot Table Limitations (P-003 Implementation)
+- **Issue**: openpyxl has limited native pivot table support
+- **Root Cause**: PivotTable class exists but lacks full Excel pivot table functionality
+- **Solution**: Create formatted Excel tables that users can convert to pivot tables in Excel
+- **Lesson**: When library support is limited, provide user-friendly alternatives that leverage native Excel features
+- **Files**: `excel_exporter.py`
+
+### 46. Excel Table Formatting (P-003 Implementation)
+- **Issue**: Need professional-looking tables for time tracking data
+- **Solution**: Use openpyxl's Table class with TableStyleInfo for formatted tables
+- **Lesson**: Excel tables provide better user experience than raw data ranges
+- **Files**: `excel_exporter.py`
+
+### 47. Multiple Aggregation Levels (P-003 Implementation)
+- **Issue**: Different users need different views of time data
+- **Solution**: Provide 3 tables: detailed, daily summary, and total summary
+- **Lesson**: Offer multiple aggregation levels to serve different analysis needs
+- **Files**: `excel_exporter.py`
+
+### 48. User Instructions in Sheets (P-003 Implementation)
+- **Issue**: Users may not know how to create pivot tables from formatted tables
+- **Solution**: Added tip text explaining how to use Insert > PivotTable
+- **Lesson**: Include user-friendly instructions directly in the output
+- **Files**: `excel_exporter.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -318,6 +345,10 @@ This document tracks fixes, corrections, and important learnings from the develo
 25. **Order stacked segments logically** (completed → active → pending)
 26. **Sort by primary metric** being visualized for better insights
 27. **Handle missing relationships** (e.g., "No Epic" group) in aggregations
+28. **Use Excel tables** instead of raw ranges for better user experience
+29. **Provide multiple aggregation levels** to serve different analysis needs
+30. **Include user instructions** directly in output files
+31. **Leverage native Excel features** when library support is limited
 
 ## Future Improvements to Consider
 

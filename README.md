@@ -20,6 +20,7 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
   - **NEW**: Open Epics sheet (always included)
   - Charts with visual analytics
   - **NEW**: Progress sheet with 7 progress visualization charts
+  - **NEW**: Time Tracking sheet with formatted tables for easy pivot analysis
 - **🎨 Visual Analytics**: Comprehensive charts in dedicated Charts sheet:
   - Issues by status (pie chart)
   - Issues by type (pie chart) 
@@ -125,11 +126,12 @@ python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 20
 
 ### 3. **Advanced Excel Export**
 - Multiple sheets with rich formatting
-- **Up to 8 sheets**: Sprint(s), Epics with Label, Open Epics, Work Logs, Comments, Charts, Progress
+- **Up to 9 sheets**: Sprint(s), Epics with Label, Open Epics, Work Logs, Comments, Charts, Progress, Time Tracking
 - Dynamic charts with professional styling
 - Formula-based calculations
 - Color-coded visualizations
 - **7 progress charts** showing epic completion by percentage and story points
+- **3 time tracking tables** for easy pivot table creation and analysis
 
 ### 4. **User-Friendly Configuration**
 - No hidden files (uses `JiraExtractor.env`)
@@ -138,7 +140,7 @@ python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 20
 
 ## 📊 Output
 
-The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 8 sheets:
+The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 9 sheets:
 
 ### 1. **Sprint Issues Sheet(s)** ⭐ ENHANCED
 - Complete issue details (key, summary, status, type)
@@ -199,6 +201,29 @@ The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up
   - Truncates long epic names (40 chars + "...")
   - Handles "No Epic" group for orphaned issues
   - Color-coded: Done (green), In Progress (yellow), To Do (blue)
+
+### 8. **Time Tracking Sheet** ⭐ NEW
+- **Detailed Time Tracking Table**:
+  - Columns: Date, Author, Issue Key, Hours
+  - Sorted by date, then author, then issue
+  - Granular view of all time entries
+  - Excel Table: DetailedTimeTracking
+- **Summary by Author and Date Table**:
+  - Columns: Author, Date, Total Hours
+  - Daily time tracking per developer
+  - Sorted by author, then date
+  - Excel Table: SummaryByAuthorDate
+- **Total Hours by Author Table**:
+  - Columns: Author, Total Hours
+  - Overall time summary per developer
+  - Sorted by author
+  - Excel Table: TotalByAuthor
+- **Features**:
+  - Professional formatted Excel tables
+  - Easy conversion to pivot tables (Insert > PivotTable in Excel)
+  - Multiple aggregation levels for different analysis needs
+  - Only created when worklogs exist
+  - Includes user-friendly instructions
 
 ## 🔧 Configuration
 
