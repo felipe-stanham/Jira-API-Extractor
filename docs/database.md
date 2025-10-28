@@ -14,6 +14,7 @@ erDiagram
     WORKBOOK ||--|| WORK_LOGS_SHEET : contains
     WORKBOOK ||--|| COMMENTS_SHEET : contains
     WORKBOOK ||--|| CHARTS_SHEET : contains
+    WORKBOOK ||--|| PROGRESS_SHEET : contains
     
     SPRINT_SHEET {
         string IssueKey PK
@@ -348,6 +349,92 @@ flowchart TD
     H --> I
     
     I --> J[Render Chart]
+```
+
+### Progress Sheet
+
+**Sheet Name**: `Progress`
+
+**Purpose**: Contains progress visualization charts showing epic completion by percentage and story points
+
+**Chart Types and Data Sources**:
+
+#### 1. Sprint Progress Charts (3 charts per sprint)
+
+| Chart Name | Type | Data Source | Position | Description |
+|------------|------|-------------|----------|-------------|
+| {Sprint Name} - Progress by Epic (%) | Horizontal Bar | Sprint Sheet | A{row} | Completion percentage per epic |
+| {Sprint Name} - Progress by Epic (Story Points) | Stacked Bar | Sprint Sheet | Q{row} | Story points breakdown (Done/In Progress/To Do) |
+| {Sprint Name} - Composition by Epic | Pie | Sprint Sheet | AG{row} | Epic distribution by total story points |
+
+#### 2. Epic Label Progress Charts (2 charts, conditional)
+
+| Chart Name | Type | Data Source | Position | Description |
+|------------|------|-------------|----------|-------------|
+| Epic Label Progress by Epic (%) | Horizontal Bar | Epics with Label Sheet | A{row} | Completion percentage for labeled epics |
+| Epic Label Progress by Epic (Story Points) | Stacked Bar | Epics with Label Sheet | Q{row} | Story points breakdown for labeled epics |
+
+**Note**: These charts are only created when `--epic_label` parameter is provided.
+
+#### 3. Open Epic Progress Charts (2 charts, always included)
+
+| Chart Name | Type | Data Source | Position | Description |
+|------------|------|-------------|----------|-------------|
+| Open Epics Progress by Epic (%) | Horizontal Bar | Open Epics Sheet | A{row} | Completion percentage for all open epics |
+| Open Epics Progress by Epic (Story Points) | Stacked Bar | Open Epics Sheet | Q{row} | Story points breakdown for all open epics |
+
+**Data Aggregation Logic**:
+
+```mermaid
+flowchart TD
+    A[Issue List] --> B[Group by Parent Epic]
+    B --> C{Has Story Points?}
+    C -->|Yes| D[Calculate by Status Category]
+    C -->|No| E[Assign 0 points]
+    D --> F[Sum Done Points]
+    D --> G[Sum In Progress Points]
+    D --> H[Sum To Do Points]
+    E --> F
+    E --> G
+    E --> H
+    F --> I[Calculate Total]
+    G --> I
+    H --> I
+    I --> J{Total > 0?}
+    J -->|Yes| K[Calculate Percentage]
+    J -->|No| L[Exclude from Charts]
+    K --> M[Sort by % Descending]
+    M --> N[Truncate Epic Names 40 chars]
+    N --> O[Generate Charts]
+```
+
+**Chart Features**:
+- **Sorting**: Epics sorted by completion percentage (highest first)
+- **Filtering**: Excludes epics with 0 total story points
+- **Naming**: Epic names truncated to 40 characters + "..."
+- **Grouping**: Issues without parent grouped as "No Epic"
+- **Colors**: Done (green #4CAF50), In Progress (yellow #FFC107), To Do (blue #2196F3)
+- **Stacked Order**: Done (left) → In Progress (middle) → To Do (right)
+
+**Data Columns** (used for chart generation):
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| Epic | String | Epic name (truncated) | Goal Highlights with Segment NBA |
+| Completion % | Float | Percentage of done story points | 92.3 |
+| Done | Float | Story points in Done status | 24 |
+| In Progress | Float | Story points in In Progress status | 0 |
+| To Do | Float | Story points in To Do status | 2 |
+| Story Points | Float | Total story points for epic | 26 |
+
+**Sample Data**:
+```
+Epic                                    | Completion % | Done | In Progress | To Do | Total
+----------------------------------------|--------------|------|-------------|-------|------
+Goal Highlights with Segment NBA        | 92.3         | 24   | 0           | 2     | 26
+Funnel Report                           | 90.0         | 27   | 3           | 0     | 30
+(TBD) YouTube Live Comments             | 64.0         | 16   | 9           | 0     | 25
+Propensity Model Report                 | 13.0         | 3    | 0           | 20    | 23
 ```
 
 ## Data Relationships

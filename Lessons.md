@@ -232,6 +232,63 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: Numeric fields should use 0 for missing values, text fields use empty string
 - **Files**: `excel_exporter.py`
 
+## P-002: Progress Graphs
+
+### 36. Chart Data Column Separation (P-002 Implementation)
+- **Issue**: Percentage bar charts showing raw "done" points instead of completion percentages
+- **Root Cause**: All chart types (percentage, stacked, pie) were writing data to same columns, causing overwrites
+- **Solution**: Separated data columns - Percentage (A-B), Stacked (D-G), Pie (I-J)
+- **Lesson**: When creating multiple charts from same row, use different column ranges to prevent data conflicts
+- **Files**: `progress_charts_helper.py`, `excel_exporter.py`
+
+### 37. Progress Data Aggregation (P-002 Implementation)
+- **Issue**: Need to calculate epic progress from raw issue data
+- **Solution**: Created dedicated aggregator module with reusable functions
+- **Lesson**: Separate data aggregation logic from chart generation for better modularity and reusability
+- **Files**: `progress_data_aggregator.py`
+
+### 38. Epic Name Truncation (P-002 Implementation)
+- **Issue**: Long epic names cause chart readability issues
+- **Solution**: Truncate epic names to 40 characters with "..." suffix
+- **Lesson**: Always consider display constraints when showing user-generated content in charts
+- **Files**: `progress_data_aggregator.py`
+
+### 39. Zero Story Points Filtering (P-002 Implementation)
+- **Issue**: Epics with 0 total story points create meaningless chart entries
+- **Solution**: Exclude epics with 0 total story points from all progress charts
+- **Lesson**: Filter out zero-value data points to keep charts meaningful and focused
+- **Files**: `progress_data_aggregator.py`
+
+### 40. Conditional Chart Generation (P-002 Implementation)
+- **Issue**: Not all chart types are relevant for all data extractions
+- **Solution**: Epic Label charts only created when `--epic_label` parameter provided
+- **Lesson**: Make chart generation conditional based on available data to avoid empty charts
+- **Files**: `excel_exporter.py`
+
+### 41. Progress Chart Color Consistency (P-002 Implementation)
+- **Issue**: Need consistent color scheme across all progress visualizations
+- **Solution**: Defined progress-specific colors: Done (green), In Progress (yellow), To Do (blue)
+- **Lesson**: Consistent color coding improves user comprehension across multiple charts
+- **Files**: `progress_charts_helper.py`
+
+### 42. Stacked Bar Order (P-002 Implementation)
+- **Issue**: Order of stacked segments affects chart readability
+- **Solution**: Always stack in order: Done (left) → In Progress (middle) → To Do (right)
+- **Lesson**: Logical ordering of stacked segments (completed → active → pending) improves intuitive understanding
+- **Files**: `progress_charts_helper.py`
+
+### 43. Epic Sorting by Completion (P-002 Implementation)
+- **Issue**: Random epic order makes it hard to identify progress patterns
+- **Solution**: Sort epics by completion percentage (highest first) in all charts
+- **Lesson**: Sort data by the primary metric being visualized for better insights
+- **Files**: `progress_data_aggregator.py`
+
+### 44. "No Epic" Group Handling (P-002 Implementation)
+- **Issue**: Issues without parent epic were being excluded from charts
+- **Solution**: Group orphaned issues as "No Epic" in all progress calculations
+- **Lesson**: Always account for missing relationships in data aggregation
+- **Files**: `progress_data_aggregator.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -252,6 +309,15 @@ This document tracks fixes, corrections, and important learnings from the develo
 16. **Verify custom field IDs** against actual instance before deployment
 17. **Use 0 for missing numeric fields**, empty string for missing text fields
 18. **Fetch all required fields** in API queries for new features
+19. **Separate chart data columns** to prevent overwrites when multiple charts use same row
+20. **Modularize data aggregation** - separate from chart generation for reusability
+21. **Truncate long text** in charts to maintain readability
+22. **Filter zero-value data** to keep charts focused and meaningful
+23. **Make charts conditional** based on available data
+24. **Use consistent color schemes** across related visualizations
+25. **Order stacked segments logically** (completed → active → pending)
+26. **Sort by primary metric** being visualized for better insights
+27. **Handle missing relationships** (e.g., "No Epic" group) in aggregations
 
 ## Future Improvements to Consider
 

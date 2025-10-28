@@ -19,6 +19,7 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
   - **NEW**: Epics with Label sheet (conditional)
   - **NEW**: Open Epics sheet (always included)
   - Charts with visual analytics
+  - **NEW**: Progress sheet with 7 progress visualization charts
 - **🎨 Visual Analytics**: Comprehensive charts in dedicated Charts sheet:
   - Issues by status (pie chart)
   - Issues by type (pie chart) 
@@ -38,6 +39,8 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 ├── jira_api.py                # Jira API client with pagination
 ├── excel_exporter.py          # Excel export with charts
 ├── charts_helper_enhanced.py  # Chart creation functions
+├── progress_charts_helper.py  # Progress chart creation functions
+├── progress_data_aggregator.py # Progress data aggregation
 ├── chart_colors.py            # Chart color schemes
 ├── utils.py                   # Utility functions
 ├── requirements.txt           # Python dependencies
@@ -122,10 +125,11 @@ python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 20
 
 ### 3. **Advanced Excel Export**
 - Multiple sheets with rich formatting
-- **Up to 7 sheets**: Sprint(s), Epics with Label, Open Epics, Work Logs, Comments, Charts
+- **Up to 8 sheets**: Sprint(s), Epics with Label, Open Epics, Work Logs, Comments, Charts, Progress
 - Dynamic charts with professional styling
 - Formula-based calculations
 - Color-coded visualizations
+- **7 progress charts** showing epic completion by percentage and story points
 
 ### 4. **User-Friendly Configuration**
 - No hidden files (uses `JiraExtractor.env`)
@@ -134,7 +138,7 @@ python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 20
 
 ## 📊 Output
 
-The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 7 sheets:
+The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up to 8 sheets:
 
 ### 1. **Sprint Issues Sheet(s)** ⭐ ENHANCED
 - Complete issue details (key, summary, status, type)
@@ -177,6 +181,24 @@ The application generates a comprehensive Excel file (`JiraExport.xlsx`) with up
 - **Time by Type per Sprint**: Individual pie charts for each sprint
 - **Time by Type (Stacked)**: Horizontal bar chart across all sprints
 - **Summary Statistics**: Formula-based calculations
+
+### 7. **Progress Sheet** ⭐ NEW
+- **Sprint Progress Charts** (3 charts per sprint):
+  - Progress by Epic (%) - Horizontal bar chart showing completion percentage
+  - Progress by Epic (Story Points) - Stacked bar chart (Done/In Progress/To Do)
+  - Composition by Epic - Pie chart showing epic distribution
+- **Epic Label Progress Charts** (2 charts, conditional on `--epic_label`):
+  - Progress by Epic (%) - Completion percentage for labeled epics
+  - Progress by Epic (Story Points) - Stacked breakdown for labeled epics
+- **Open Epic Progress Charts** (2 charts, always included):
+  - Progress by Epic (%) - Completion percentage for all open epics
+  - Progress by Epic (Story Points) - Stacked breakdown for all open epics
+- **Features**:
+  - Epics sorted by completion percentage (highest first)
+  - Excludes epics with 0 story points
+  - Truncates long epic names (40 chars + "...")
+  - Handles "No Epic" group for orphaned issues
+  - Color-coded: Done (green), In Progress (yellow), To Do (blue)
 
 ## 🔧 Configuration
 

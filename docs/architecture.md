@@ -17,6 +17,8 @@ graph TB
         JIRA[Jira API Client<br/>jira_api.py]
         EXCEL[Excel Exporter<br/>excel_exporter.py]
         CHARTS[Charts Helper<br/>charts_helper_enhanced.py]
+        PROGRESS_CHARTS[Progress Charts Helper<br/>progress_charts_helper.py]
+        PROGRESS_DATA[Progress Data Aggregator<br/>progress_data_aggregator.py]
         UTILS[Utilities<br/>utils.py]
         COLORS[Chart Colors<br/>chart_colors.py]
     end
@@ -35,6 +37,9 @@ graph TB
     
     JIRA --> EXCEL
     EXCEL --> CHARTS
+    EXCEL --> PROGRESS_CHARTS
+    PROGRESS_CHARTS --> PROGRESS_DATA
+    PROGRESS_CHARTS --> COLORS
     CHARTS --> COLORS
     EXCEL --> UTILS
     
@@ -58,7 +63,10 @@ graph LR
         
         C --> E[utils.py]
         D --> F[charts_helper_enhanced.py]
+        D --> H[progress_charts_helper.py]
+        H --> I[progress_data_aggregator.py]
         F --> G[chart_colors.py]
+        H --> G
     end
     
     subgraph "GUI Components"
@@ -170,9 +178,12 @@ sequenceDiagram
 
 **Sheet Structure**:
 - Sprint sheets (one per sprint)
+- Epics with Label sheet (conditional)
+- Open Epics sheet (always included)
 - Work Logs sheet
 - Comments sheet
 - Charts sheet
+- Progress sheet (with 7 progress charts)
 
 #### `charts_helper_enhanced.py`
 - **Purpose**: Chart generation for Excel
@@ -188,6 +199,37 @@ sequenceDiagram
 - Overall summary charts (4 charts)
 - Per-sprint charts (3 charts per sprint)
 - Stacked analysis charts
+
+#### `progress_charts_helper.py`
+- **Purpose**: Progress chart generation for Excel
+- **Responsibilities**:
+  - Create horizontal bar charts showing completion percentage
+  - Create stacked bar charts showing story points breakdown (Done/In Progress/To Do)
+  - Create pie charts showing epic composition
+  - Apply progress-specific color schemes
+  - Position charts in Progress sheet
+
+**Chart Types**:
+- Sprint progress charts (3 per sprint)
+- Epic label progress charts (2, conditional)
+- Open epic progress charts (2, always included)
+
+#### `progress_data_aggregator.py`
+- **Purpose**: Data aggregation for progress charts
+- **Responsibilities**:
+  - Group issues by parent epic
+  - Calculate story points by status category (Done/In Progress/To Do)
+  - Calculate completion percentages
+  - Sort epics by completion percentage
+  - Exclude epics with 0 story points
+  - Truncate epic names to 40 characters
+  - Handle "No Epic" group for orphaned issues
+
+**Key Functions**:
+- `calculate_epic_progress(issues)`: Main aggregation function
+- `calculate_sprint_composition(issues)`: Epic distribution data
+- `aggregate_by_epic(issues)`: Group issues by parent
+- `truncate_epic_name(name, max_length)`: Name truncation utility
 
 #### `utils.py`
 - **Purpose**: Utility functions
@@ -252,11 +294,13 @@ flowchart TD
     L --> N[Write Work Logs Sheet]
     L --> O[Write Comments Sheet]
     L --> P[Generate Charts]
+    L --> S[Generate Progress Charts]
     
     M --> Q[Save Excel File]
     N --> Q
     O --> Q
     P --> Q
+    S --> Q
     
     Q --> R[Output to User]
 ```
