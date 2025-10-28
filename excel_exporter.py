@@ -256,25 +256,25 @@ class ExcelExporter:
                 epic_progress = calculate_epic_progress(sprint_issues)
                 
                 if epic_progress:  # Only create charts if there's data
-                    # Chart 1: Sprint Progress in Percentage
+                    # Chart 1: Sprint Progress in Percentage (Column A-B)
                     chart1, end_row1 = create_percentage_bar_chart(
                         ws, epic_progress, current_row,
                         f"{sprint_name} - Progress by Epic (%)"
                     )
                     ws.add_chart(chart1, f"A{current_row}")
                     
-                    # Chart 2: Sprint Progress in Story Points (Stacked)
+                    # Chart 2: Sprint Progress in Story Points (Stacked) (Column D-G)
                     chart2, end_row2 = create_stacked_bar_chart(
-                        ws, epic_progress, current_row,
+                        ws, epic_progress, current_row, 4,  # Start at column 4 (D)
                         f"{sprint_name} - Progress by Epic (Story Points)"
                     )
                     ws.add_chart(chart2, f"Q{current_row}")  # Column Q (17)
                     
-                    # Chart 3: Sprint Composition (Pie)
+                    # Chart 3: Sprint Composition (Pie) (Column I-J)
                     composition_data = calculate_sprint_composition(sprint_issues)
                     if composition_data:
                         chart3, end_row3 = create_composition_pie_chart(
-                            ws, composition_data, max(end_row1, end_row2) + 2,
+                            ws, composition_data, current_row, 9,  # Start at column 9 (I)
                             f"{sprint_name} - Composition by Epic"
                         )
                         ws.add_chart(chart3, f"AG{current_row}")  # Column AG (33)
@@ -287,16 +287,16 @@ class ExcelExporter:
             epic_progress = calculate_epic_progress(epic_label_issues['issues'])
             
             if epic_progress:
-                # Chart 4: Epic Label Progress in Percentage
+                # Chart 4: Epic Label Progress in Percentage (Column A-B)
                 chart4, end_row4 = create_percentage_bar_chart(
                     ws, epic_progress, current_row,
                     "Epic Label Progress by Epic (%)"
                 )
                 ws.add_chart(chart4, f"A{current_row}")
                 
-                # Chart 5: Epic Label Progress in Story Points (Stacked)
+                # Chart 5: Epic Label Progress in Story Points (Stacked) (Column D-G)
                 chart5, end_row5 = create_stacked_bar_chart(
-                    ws, epic_progress, current_row,
+                    ws, epic_progress, current_row, 4,  # Start at column 4 (D)
                     "Epic Label Progress by Epic (Story Points)"
                 )
                 ws.add_chart(chart5, f"Q{current_row}")  # Column Q (17)
@@ -309,16 +309,16 @@ class ExcelExporter:
             epic_progress = calculate_epic_progress(open_epic_issues['issues'])
             
             if epic_progress:
-                # Chart 6: Open Epic Progress in Percentage
+                # Chart 6: Open Epic Progress in Percentage (Column A-B)
                 chart6, end_row6 = create_percentage_bar_chart(
                     ws, epic_progress, current_row,
                     "Open Epics Progress by Epic (%)"
                 )
                 ws.add_chart(chart6, f"A{current_row}")
                 
-                # Chart 7: Open Epic Progress in Story Points (Stacked)
+                # Chart 7: Open Epic Progress in Story Points (Stacked) (Column D-G)
                 chart7, end_row7 = create_stacked_bar_chart(
-                    ws, epic_progress, current_row,
+                    ws, epic_progress, current_row, 4,  # Start at column 4 (D)
                     "Open Epics Progress by Epic (Story Points)"
                 )
                 ws.add_chart(chart7, f"Q{current_row}")  # Column Q (17)

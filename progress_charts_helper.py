@@ -64,7 +64,7 @@ def create_percentage_bar_chart(ws, epic_progress_data, start_row, chart_title):
     return chart, current_row
 
 
-def create_stacked_bar_chart(ws, epic_progress_data, start_row, chart_title):
+def create_stacked_bar_chart(ws, epic_progress_data, start_row, start_col, chart_title):
     """
     Creates horizontal stacked bar chart showing epic progress by story points.
     Stacked in order: Done (left) → In Progress (middle) → To Do (right)
@@ -73,24 +73,25 @@ def create_stacked_bar_chart(ws, epic_progress_data, start_row, chart_title):
         ws: Worksheet object
         epic_progress_data: List of dicts from calculate_epic_progress()
         start_row: Starting row for data
+        start_col: Starting column for data
         chart_title: Title for the chart
         
     Returns:
         BarChart object
     """
     # Write headers
-    ws.cell(row=start_row, column=1, value="Epic")
-    ws.cell(row=start_row, column=2, value="Done")
-    ws.cell(row=start_row, column=3, value="In Progress")
-    ws.cell(row=start_row, column=4, value="To Do")
+    ws.cell(row=start_row, column=start_col, value="Epic")
+    ws.cell(row=start_row, column=start_col + 1, value="Done")
+    ws.cell(row=start_row, column=start_col + 2, value="In Progress")
+    ws.cell(row=start_row, column=start_col + 3, value="To Do")
     
     # Write data
     current_row = start_row + 1
     for epic in epic_progress_data:
-        ws.cell(row=current_row, column=1, value=epic['epic_name'])
-        ws.cell(row=current_row, column=2, value=epic['done_points'])
-        ws.cell(row=current_row, column=3, value=epic['in_progress_points'])
-        ws.cell(row=current_row, column=4, value=epic['to_do_points'])
+        ws.cell(row=current_row, column=start_col, value=epic['epic_name'])
+        ws.cell(row=current_row, column=start_col + 1, value=epic['done_points'])
+        ws.cell(row=current_row, column=start_col + 2, value=epic['in_progress_points'])
+        ws.cell(row=current_row, column=start_col + 3, value=epic['to_do_points'])
         current_row += 1
     
     # Create stacked bar chart
@@ -103,8 +104,8 @@ def create_stacked_bar_chart(ws, epic_progress_data, start_row, chart_title):
     chart.y_axis.title = "Epic"
     
     # Add data series (Done, In Progress, To Do)
-    data = Reference(ws, min_col=2, max_col=4, min_row=start_row, max_row=current_row - 1)
-    cats = Reference(ws, min_col=1, min_row=start_row + 1, max_row=current_row - 1)
+    data = Reference(ws, min_col=start_col + 1, max_col=start_col + 3, min_row=start_row, max_row=current_row - 1)
+    cats = Reference(ws, min_col=start_col, min_row=start_row + 1, max_row=current_row - 1)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
     
@@ -130,7 +131,7 @@ def create_stacked_bar_chart(ws, epic_progress_data, start_row, chart_title):
     return chart, current_row
 
 
-def create_composition_pie_chart(ws, composition_data, start_row, chart_title):
+def create_composition_pie_chart(ws, composition_data, start_row, start_col, chart_title):
     """
     Creates pie chart showing sprint composition by epic.
     Shows total story points per epic (all statuses).
@@ -139,19 +140,20 @@ def create_composition_pie_chart(ws, composition_data, start_row, chart_title):
         ws: Worksheet object
         composition_data: List of dicts from calculate_sprint_composition()
         start_row: Starting row for data
+        start_col: Starting column for data
         chart_title: Title for the chart
         
     Returns:
         PieChart object
     """
     # Write data to worksheet
-    ws.cell(row=start_row, column=1, value="Epic")
-    ws.cell(row=start_row, column=2, value="Story Points")
+    ws.cell(row=start_row, column=start_col, value="Epic")
+    ws.cell(row=start_row, column=start_col + 1, value="Story Points")
     
     current_row = start_row + 1
     for epic in composition_data:
-        ws.cell(row=current_row, column=1, value=epic['epic_name'])
-        ws.cell(row=current_row, column=2, value=epic['total_points'])
+        ws.cell(row=current_row, column=start_col, value=epic['epic_name'])
+        ws.cell(row=current_row, column=start_col + 1, value=epic['total_points'])
         current_row += 1
     
     # Create pie chart
@@ -159,8 +161,8 @@ def create_composition_pie_chart(ws, composition_data, start_row, chart_title):
     chart.title = chart_title
     
     # Add data
-    data = Reference(ws, min_col=2, min_row=start_row, max_row=current_row - 1)
-    cats = Reference(ws, min_col=1, min_row=start_row + 1, max_row=current_row - 1)
+    data = Reference(ws, min_col=start_col + 1, min_row=start_row, max_row=current_row - 1)
+    cats = Reference(ws, min_col=start_col, min_row=start_row + 1, max_row=current_row - 1)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
     
