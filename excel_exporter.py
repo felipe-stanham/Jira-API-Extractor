@@ -3,6 +3,7 @@
 from openpyxl import Workbook
 from openpyxl.chart import PieChart, BarChart, Reference
 from openpyxl.chart.label import DataLabelList
+from openpyxl.worksheet.table import Table, TableStyleInfo
 from collections import Counter
 from charts_helper_enhanced import create_clean_charts_sheet
 from config import JIRA_STORY_POINTS_FIELD
@@ -164,6 +165,12 @@ class ExcelExporter:
             progress_sheet = self._create_progress_sheet(issues_by_sprint, epic_label_issues, open_epic_issues)
             sheets_created.append(progress_sheet)
         
+        # Create Time Tracking sheet with pivot tables (only if worklogs exist)
+        if worklogs and len(worklogs) > 0:
+            time_tracking_sheet = self._create_time_tracking_sheet()
+            if time_tracking_sheet:
+                sheets_created.append(time_tracking_sheet)
+        
         if not sheets_created:
             return False, None, "No data was fetched to save."
         
@@ -324,6 +331,195 @@ class ExcelExporter:
                 ws.add_chart(chart7, f"Q{current_row}")  # Column Q (17)
         
         return "Progress"
+    
+    def _create_time_tracking_sheet(self):
+        """
+        Creates Time Tracking sheet with aggregated time data for easy pivot table creation.
+        
+        Note: This creates formatted tables that users can easily convert to pivot tables in Excel.
+        The data is pre-aggregated and organized for time tracking analysis.
+        
+        Returns:
+            str: Sheet name if created, None otherwise
+        """
+        # Check if Work Logs sheet exists
+        if "Work Logs" not in self.wb.sheetnames:
+            return None
+        
+        work_logs_sheet = self.wb["Work Logs"]
+        
+        # Get worklog data from the sheet
+        # Columns: Issue Key(A), Issue Type(B), Summary(C), Status(D), Author(E), Time Spent(F), Time Spent Hours(G), Date(H), Sprint(I), Comment(J)
+        max_row = work_logs_sheet.max_row
+        if max_row <= 1:  # Only header row or empty
+            return None
+        
+        # Read all worklog data
+        worklogs_data = []
+        for row in range(2, max_row + 1):  # Skip header
+            issue_key = work_logs_sheet.cell(row, 1).value
+            author = work_logs_sheet.cell(row, 5).value
+            date = work_logs_sheet.cell(row, 8).value  # Date is column H (8)
+            hours = work_logs_sheet.cell(row, 7).value or 0  # Time Spent Hours is column G (7)
+            
+            worklogs_data.append({
+                'issue_key': issue_key,
+                'author': author,
+                'date': date,
+                'hours': float(hours) if hours else 0
+            })
+        
+        # Create Time Tracking sheet
+        ws = self.wb.create_sheet(title="Time Tracking")
+        
+        # Add title and instructions
+        ws['A1'] = "Time Tracking Analysis"
+        ws['A1'].font = ws['A1'].font.copy(bold=True, size=14)
+        ws['A2'] = "Tip: Select any table below and use Insert > PivotTable in Excel for interactive analysis"
+        ws['A2'].font = ws['A2'].font.copy(italic=True, size=10)
+        
+        # Table 1: Time by Date, Author, and Issue
+        # This provides the detailed view requested
+        ws['A4'] = "Detailed Time Tracking"
+        ws['A4'].font = ws['A4'].font.copy(bold=True, size=12)
+        
+        # Headers for Table 1
+        current_row = 6
+        ws.cell(current_row, 1, "Date")
+        ws.cell(current_row, 2, "Author")
+        ws.cell(current_row, 3, "Issue Key")
+        ws.cell(current_row, 4, "Hours")
+        
+        # Make headers bold
+        for col in range(1, 5):
+            ws.cell(current_row, col).font = ws.cell(current_row, col).font.copy(bold=True)
+        
+        # Sort worklogs by date, then author, then issue
+        sorted_worklogs = sorted(worklogs_data, key=lambda x: (x['date'] or '', x['author'] or '', x['issue_key'] or ''))
+        
+        # Write data
+        current_row += 1
+        start_row_table1 = current_row
+        for wl in sorted_worklogs:
+            ws.cell(current_row, 1, wl['date'])
+            ws.cell(current_row, 2, wl['author'])
+            ws.cell(current_row, 3, wl['issue_key'])
+            ws.cell(current_row, 4, wl['hours'])
+            current_row += 1
+        
+        end_row_table1 = current_row - 1
+        
+        # Create Excel Table for easy filtering and pivot table creation
+        if end_row_table1 >= start_row_table1:
+            table1 = Table(displayName="DetailedTimeTracking", ref=f"A6:D{end_row_table1}")
+            style = TableStyleInfo(
+                name="TableStyleMedium9",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False
+            )
+            table1.tableStyleInfo = style
+            ws.add_table(table1)
+        
+        # Table 2: Summary by Author and Date
+        # This provides aggregated view
+        current_row += 3
+        ws.cell(current_row, 1, "Summary by Author and Date")
+        ws.cell(current_row, 1).font = ws.cell(current_row, 1).font.copy(bold=True, size=12)
+        
+        current_row += 2
+        ws.cell(current_row, 1, "Author")
+        ws.cell(current_row, 2, "Date")
+        ws.cell(current_row, 3, "Total Hours")
+        
+        # Make headers bold
+        for col in range(1, 4):
+            ws.cell(current_row, col).font = ws.cell(current_row, col).font.copy(bold=True)
+        
+        # Aggregate by author and date
+        from collections import defaultdict
+        author_date_hours = defaultdict(float)
+        for wl in worklogs_data:
+            key = (wl['author'], wl['date'])
+            author_date_hours[key] += wl['hours']
+        
+        # Sort by author, then date
+        sorted_summary = sorted(author_date_hours.items(), key=lambda x: (x[0][0] or '', x[0][1] or ''))
+        
+        current_row += 1
+        start_row_table2 = current_row
+        for (author, date), hours in sorted_summary:
+            ws.cell(current_row, 1, author)
+            ws.cell(current_row, 2, date)
+            ws.cell(current_row, 3, hours)
+            current_row += 1
+        
+        end_row_table2 = current_row - 1
+        
+        # Create Excel Table
+        if end_row_table2 >= start_row_table2:
+            table2 = Table(displayName="SummaryByAuthorDate", ref=f"A{start_row_table2-1}:C{end_row_table2}")
+            style2 = TableStyleInfo(
+                name="TableStyleMedium2",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False
+            )
+            table2.tableStyleInfo = style2
+            ws.add_table(table2)
+        
+        # Table 3: Summary by Author (Total)
+        current_row += 3
+        ws.cell(current_row, 1, "Total Hours by Author")
+        ws.cell(current_row, 1).font = ws.cell(current_row, 1).font.copy(bold=True, size=12)
+        
+        current_row += 2
+        ws.cell(current_row, 1, "Author")
+        ws.cell(current_row, 2, "Total Hours")
+        
+        # Make headers bold
+        for col in range(1, 3):
+            ws.cell(current_row, col).font = ws.cell(current_row, col).font.copy(bold=True)
+        
+        # Aggregate by author only
+        author_hours = defaultdict(float)
+        for wl in worklogs_data:
+            author_hours[wl['author']] += wl['hours']
+        
+        # Sort by author
+        sorted_authors = sorted(author_hours.items(), key=lambda x: x[0] or '')
+        
+        current_row += 1
+        start_row_table3 = current_row
+        for author, hours in sorted_authors:
+            ws.cell(current_row, 1, author)
+            ws.cell(current_row, 2, hours)
+            current_row += 1
+        
+        end_row_table3 = current_row - 1
+        
+        # Create Excel Table
+        if end_row_table3 >= start_row_table3:
+            table3 = Table(displayName="TotalByAuthor", ref=f"A{start_row_table3-1}:B{end_row_table3}")
+            style3 = TableStyleInfo(
+                name="TableStyleMedium6",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False
+            )
+            table3.tableStyleInfo = style3
+            ws.add_table(table3)
+        
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 12
+        
+        return "Time Tracking"
     
     def get_workbook(self):
         """Returns the current workbook instance."""
