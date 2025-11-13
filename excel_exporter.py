@@ -6,7 +6,7 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from collections import Counter
 from charts_helper_enhanced import create_clean_charts_sheet
-from config import JIRA_STORY_POINTS_FIELD
+from config import get_story_points
 from progress_data_aggregator import calculate_epic_progress, calculate_sprint_composition
 from progress_charts_helper import create_percentage_bar_chart, create_stacked_bar_chart, create_composition_pie_chart
 
@@ -48,10 +48,8 @@ class ExcelExporter:
                         parent_summary = parent_field.get('fields', {}).get('summary', 'N/A')
                         parent_key = parent_field.get('key', 'N/A')
                     
-                    # Get story points (use 0 if not set)
-                    story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
-                    if story_points is None:
-                        story_points = 0
+                    # Get story points with fallback logic
+                    story_points = get_story_points(issue.get('fields', {}))
                     
                     # Get status category
                     status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')
@@ -88,10 +86,8 @@ class ExcelExporter:
                     parent_summary = parent_field.get('fields', {}).get('summary', 'N/A')
                     parent_key = parent_field.get('key', 'N/A')
                 
-                # Get story points (use 0 if not set)
-                story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
-                if story_points is None:
-                    story_points = 0
+                # Get story points with fallback logic
+                story_points = get_story_points(issue.get('fields', {}))
                 
                 # Get status category
                 status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')
@@ -211,10 +207,8 @@ class ExcelExporter:
                 # Get epic status from the epic_statuses dict
                 epic_status = epic_statuses.get(parent_key, 'N/A')
             
-            # Get story points (use 0 if not set)
-            story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
-            if story_points is None:
-                story_points = 0
+            # Get story points with fallback logic
+            story_points = get_story_points(issue.get('fields', {}))
             
             # Get status category
             status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', 'N/A')

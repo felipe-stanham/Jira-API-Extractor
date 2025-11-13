@@ -7,7 +7,7 @@ Groups issues by epic, calculates story points by status category,
 and prepares data for chart generation.
 """
 
-from config import JIRA_STORY_POINTS_FIELD
+from config import get_story_points
 
 
 def truncate_epic_name(name, max_length=40):
@@ -67,10 +67,8 @@ def calculate_epic_progress(issues):
                 'total_points': 0
             }
         
-        # Get story points
-        story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
-        if story_points is None:
-            story_points = 0
+        # Get story points with fallback logic
+        story_points = get_story_points(issue.get('fields', {}))
         
         # Get status category
         status_category = issue.get('fields', {}).get('status', {}).get('statusCategory', {}).get('name', '')
@@ -162,10 +160,8 @@ def calculate_sprint_composition(issues):
                 'total_points': 0
             }
         
-        # Get story points
-        story_points = issue.get('fields', {}).get(JIRA_STORY_POINTS_FIELD)
-        if story_points is None:
-            story_points = 0
+        # Get story points with fallback logic
+        story_points = get_story_points(issue.get('fields', {}))
         
         epic_totals[epic_key]['total_points'] += story_points
         sprint_total += story_points
