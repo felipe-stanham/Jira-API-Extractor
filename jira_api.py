@@ -2,7 +2,7 @@
 
 import requests
 from datetime import datetime, timezone
-from config import JIRA_API_URL, JIRA_STORY_POINTS_FIELD, get_auth
+from config import JIRA_API_URL, JIRA_STORY_POINTS_FIELD, JIRA_STORY_POINTS_ESTIMATE_FIELD, get_auth
 from utils import parse_adf_to_text, paginate_request
 
 class JiraAPIClient:
@@ -14,12 +14,27 @@ class JiraAPIClient:
         self.auth = get_auth()
         self.headers = {"Accept": "application/json"}
     
-    def get_issues_in_sprint(self, project_key, sprint_id):
-        """Fetches all issues in a given sprint using the Agile API with pagination."""
+    def get_issues_in_sprint(self, project_key, sprint_id, jql=None):
+        """
+        Fetches all issues in a given sprint using the Agile API with pagination.
+        
+        Args:
+            project_key: Jira project key
+            sprint_id: Sprint ID
+            jql: Optional additional JQL filter to apply
+        """
         agile_url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}/issue"
+        
+        # Build JQL query
+        base_jql = f'project = "{project_key}"'
+        if jql:
+            combined_jql = f'{base_jql} AND ({jql})'
+        else:
+            combined_jql = base_jql
+        
         params = {
-            'jql': f'project = "{project_key}"',
-            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD}'
+            'jql': combined_jql,
+            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD},{JIRA_STORY_POINTS_ESTIMATE_FIELD}'
         }
         
         try:
@@ -478,21 +493,29 @@ class JiraAPIClient:
             print(f"Error fetching epics with label '{label}': {str(e)}")
             return []
     
-    def get_issues_in_epic(self, epic_key):
+    def get_issues_in_epic(self, epic_key, jql=None):
         """
         Fetches all issues that are children of a specific epic.
         
         Args:
             epic_key: The epic issue key (e.g., "PROJ-123")
+            jql: Optional additional JQL filter to apply
             
         Returns:
             List of issues in the epic with sprint information
         """
         search_url = f"{self.base_url}/rest/api/3/search/jql"
-        jql = f'parent = "{epic_key}"'
+        
+        # Build JQL query
+        base_jql = f'parent = "{epic_key}"'
+        if jql:
+            combined_jql = f'{base_jql} AND ({jql})'
+        else:
+            combined_jql = base_jql
+        
         params = {
-            'jql': jql,
-            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD},sprint,customfield_10020,customfield_10010'
+            'jql': combined_jql,
+            'fields': f'summary,status,parent,issuetype,{JIRA_STORY_POINTS_FIELD},{JIRA_STORY_POINTS_ESTIMATE_FIELD},sprint,customfield_10020,customfield_10010'
         }
         
         try:

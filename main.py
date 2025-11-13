@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--start_date', help='Start date for work logs and comments (YYYY-MM-DD, optional).')
     parser.add_argument('--end_date', help='End date for work logs and comments (YYYY-MM-DD, optional).')
     parser.add_argument('--epic_label', help='Epic label to filter epics by (optional). Exports all issues from epics with this label.')
+    parser.add_argument('--jql', help='Additional JQL filter (optional). Applies to sprint and epic issues only, not comments/worklogs.')
 
     args = parser.parse_args()
 
@@ -87,7 +88,7 @@ def main():
         
         for sprint_id in sprint_ids:
             print(f"Fetching issues for sprint {sprint_id} in project {args.project}...")
-            sprint_issues = jira_client.get_issues_in_sprint(args.project.upper(), sprint_id)
+            sprint_issues = jira_client.get_issues_in_sprint(args.project.upper(), sprint_id, jql=args.jql)
             if isinstance(sprint_issues, dict) and 'error' in sprint_issues:
                 print(f"Error fetching issues for sprint {sprint_id}: {sprint_issues['error']}")
                 continue
@@ -142,7 +143,7 @@ def main():
                 epic_statuses[epic_key] = epic_status
                 
                 print(f"  Fetching issues for epic {epic_key}...")
-                epic_issues = jira_client.get_issues_in_epic(epic_key)
+                epic_issues = jira_client.get_issues_in_epic(epic_key, jql=args.jql)
                 print(f"  Found {len(epic_issues)} issues in epic {epic_key}")
                 all_epic_issues.extend(epic_issues)
             
@@ -169,7 +170,7 @@ def main():
             open_epic_statuses[epic_key] = epic_status
             
             print(f"  Fetching issues for epic {epic_key}...")
-            epic_issues = jira_client.get_issues_in_epic(epic_key)
+            epic_issues = jira_client.get_issues_in_epic(epic_key, jql=args.jql)
             print(f"  Found {len(epic_issues)} issues in epic {epic_key}")
             all_open_epic_issues.extend(epic_issues)
         
