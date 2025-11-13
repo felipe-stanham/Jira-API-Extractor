@@ -89,6 +89,7 @@ A user-friendly Jira data extraction tool with a modern web interface. Extract i
 - `--epic_label`: (Optional) Epic label to filter by (e.g., `Q1-2025`)
 - `--start_date`: (Optional) Start date (`YYYY-MM-DD`)
 - `--end_date`: (Optional) End date (`YYYY-MM-DD`)
+- `--jql`: (Optional) Additional JQL filter for sprint/epic issues (e.g., `status = "In Progress"`)
 
 ### Examples
 ```bash
@@ -106,7 +107,18 @@ python3 main.py --project NG --epic_label "Q1-2025"
 
 # Combined: Sprint + Epic Label + Date Range
 python3 main.py --project NG --sprint 528 --epic_label "Q1-2025" --start_date 2025-07-14 --end_date 2025-07-18
+
+# Filter sprint issues by JQL (e.g., only "In Progress" status)
+python3 main.py --project NG --sprint 593 --jql 'status = "In Progress"'
+
+# Filter by board using JQL
+python3 main.py --project NG --sprint 593 --jql 'board = "Team A Board"'
+
+# Combined: Sprint + JQL + Date Range (JQL does NOT filter worklogs/comments)
+python3 main.py --project NG --sprint 593 --jql 'status = "In Progress"' --start_date 2024-01-01 --end_date 2025-12-31
 ```
+
+**Note**: The `--jql` parameter only filters sprint and epic issues. It does NOT filter worklogs or comments.
 
 ## 🎯 Key Features
 

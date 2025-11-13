@@ -330,6 +330,28 @@ This document tracks fixes, corrections, and important learnings from the develo
 - **Lesson**: Line charts are ideal for showing trends over time with multiple series for comparison
 - **Files**: `excel_exporter.py`
 
+## P-004: JQL Filter and Story Points Fix
+
+### 51. Dual Story Points Field Support (P-004 Implementation)
+- **Issue**: Jira has two story points fields, different projects use different ones
+- **Solution**: Check both fields with fallback logic (Story Points → Story Points Estimate → 0)
+- **Implementation**: Created get_story_points() helper function in config.py
+- **Lesson**: When dealing with custom fields, support multiple field IDs with proper fallback logic
+- **Files**: `config.py`, `excel_exporter.py`, `progress_data_aggregator.py`, `jira_api.py`
+
+### 52. JQL Filter Parameter (P-004 Implementation)
+- **Issue**: Need flexible filtering beyond sprint/epic/label (e.g., by board, status)
+- **Solution**: Added optional --jql parameter that combines with base queries using AND
+- **Implementation**: `base_jql AND (user_jql)` pattern in API methods
+- **Lesson**: Provide flexible filtering through JQL while maintaining base query requirements
+- **Files**: `main.py`, `jira_api.py`
+
+### 53. Selective JQL Application (P-004 Implementation)
+- **Issue**: JQL should filter issues but not worklogs/comments
+- **Solution**: Only pass JQL to issue-fetching methods, not worklog/comment methods
+- **Lesson**: Apply filters selectively based on data type - not all filters apply to all data
+- **Files**: `main.py`
+
 ## Best Practices Established
 
 1. **Always use pagination** for API endpoints that return lists
@@ -365,6 +387,9 @@ This document tracks fixes, corrections, and important learnings from the develo
 31. **Leverage native Excel features** when library support is limited
 32. **Aggregate data appropriately** for each table's purpose - avoid duplicating raw data
 33. **Use line charts** for showing trends over time with multiple series
+34. **Support multiple custom field IDs** with proper fallback logic
+35. **Provide flexible filtering** through JQL while maintaining base requirements
+36. **Apply filters selectively** based on data type
 
 ## Future Improvements to Consider
 
